@@ -1,4 +1,4 @@
-beagle-y :=  aoa.o beagleusb.o beagle-audio.o
+beagle-y :=  aoa.o beagleusb.o beagle-audio.o input.o
 
 obj-m += beagle.o
 

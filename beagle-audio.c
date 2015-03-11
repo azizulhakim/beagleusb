@@ -4,7 +4,7 @@
  *   
  *	 Special thanks to Federico Simoncelli for his Fushicai USBTV007 
  *   Audio-Video Grabber driver which helped me to gather knowledge 
- *   and develop this driver.
+ *   and develop this part driver.
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by

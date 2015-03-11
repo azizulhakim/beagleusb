@@ -20,6 +20,7 @@
 
 #include "beagleusb.h"
 #include "aoa.h"
+#include "input.h"
 
 struct beagleusb* beagle_allocate_device(){
 	struct beagleusb *beagleusb;
@@ -32,13 +33,103 @@ struct beagleusb* beagle_allocate_device(){
 	if (beagleusb->audio == NULL)
 		goto AUDIO_ALLOC_ERROR;
 
+	beagleusb->input = kzalloc(sizeof(struct beagleinput), GFP_KERNEL);
+	if (beagleusb->input == NULL)
+		goto INPUT_ALLOC_ERROR;
+
 	return beagleusb;
+
+INPUT_ALLOC_ERROR:
+	kfree(beagleusb->audio);
 
 AUDIO_ALLOC_ERROR:
 	kfree(beagleusb);
 	
 ERROR:
 	return NULL;
+}
+
+static int beagle_input_open(struct input_dev *dev)
+{
+	struct beagleusb *beagleusb = input_get_drvdata(dev);
+	struct beagleinput* beagleinput = beagleusb->input;
+
+	beagleinput->inputUrb->dev = beagleusb->usbdev;
+	if (usb_submit_urb(beagleinput->inputUrb, GFP_KERNEL))
+		return -EIO;
+
+	return 0;
+}
+
+static void beagle_input_close(struct input_dev *dev)
+{
+	struct beagleusb *beagleusb = input_get_drvdata(dev);
+	struct beagleinput* beagleinput = beagleusb->input;
+
+	usb_kill_urb(beagleinput->inputUrb);
+}
+
+int init_input_device(struct beagleusb* beagleusb, struct usb_interface *iface){
+	struct input_dev* input_dev;
+	int error = -ENOMEM;
+	int i;
+
+	input_dev = input_allocate_device();
+
+	if (input_dev == NULL)
+		return -1;
+
+	beagleusb->input->inputdev = input_dev;
+
+	if (!(beagleusb->input->inputUrb = usb_alloc_urb(0, GFP_KERNEL)))
+		return -1;
+	if (!(beagleusb->input->new = usb_alloc_coherent(beagleusb->usbdev, 8, GFP_ATOMIC, &beagleusb->input->new_dma)))
+		return -1;
+
+	usb_make_path(beagleusb->usbdev, beagleusb->phys, sizeof(beagleusb->phys));
+	strlcat(beagleusb->phys, "/input0", sizeof(beagleusb->phys));
+
+	input_dev->name = beagleusb->name;
+	input_dev->phys = beagleusb->phys;
+	usb_to_input_id(beagleusb->usbdev, &input_dev->id);
+	input_dev->dev.parent = &iface->dev;
+
+	input_set_drvdata(input_dev, beagleusb);
+
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_LED) |
+		BIT_MASK(EV_REP) | BIT_MASK(EV_REL);
+
+	input_dev->keybit[BIT_WORD(BTN_MOUSE)] = BIT_MASK(BTN_LEFT) |
+             BIT_MASK(BTN_RIGHT) | BIT_MASK(BTN_MIDDLE);
+
+	input_dev->relbit[0] = BIT_MASK(REL_X) | BIT_MASK(REL_Y);
+
+	input_dev->keybit[BIT_WORD(BTN_MOUSE)] |= BIT_MASK(BTN_SIDE) |
+			BIT_MASK(BTN_EXTRA);
+
+	input_dev->relbit[0] |= BIT_MASK(REL_WHEEL);
+
+	for (i = 0; i < 255; i++)
+		set_bit(usb_kbd_keycode[i], input_dev->keybit);
+	clear_bit(0, input_dev->keybit);
+
+	input_dev->open = beagle_input_open;
+	input_dev->close = beagle_input_close;
+
+	usb_fill_int_urb(beagleusb->input->inputUrb, 
+					 beagleusb->usbdev, 
+					 usb_rcvbulkpipe(beagleusb->usbdev, beagleusb->bulk_in_endpointAddr),
+					 beagleusb->input->new,
+					 8,
+					 usb_inputurb_complete,
+					 beagleusb, beagleusb->bInterval);
+
+	beagleusb->input->inputUrb->transfer_dma = beagleusb->input->new_dma;
+	beagleusb->input->inputUrb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+
+	error = input_register_device(beagleusb->input->inputdev);
+
+	return 0;
 }
 
 
@@ -54,6 +145,9 @@ static int beagleusb_probe(struct usb_interface *intf,
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	struct usb_host_interface *interface_descriptor;
 	struct usb_endpoint_descriptor *endpoint;
+	__u8   inputEndPointAddress = 0;
+	__u8   outputEndPointAddress = 0;
+	__u8   bInterval = 0;
 
 	if (id->idVendor == 0x18D1 && (id->idProduct >= 0x2D00 && id->idProduct <= 0x2D05)){
 		printk("BEAGLEDROID-USBAUDIO:  [%04X:%04X] Connected in AOA mode\n", id->idVendor, id->idProduct);
@@ -65,15 +159,6 @@ static int beagleusb_probe(struct usb_interface *intf,
 
 		interface_descriptor = intf->cur_altsetting;
 
-		/* Device structure */
-		beagleusb = beagle_allocate_device();
-		if (beagleusb == NULL)
-			return -ENOMEM;
-
-		beagleusb->dev = dev;
-		beagleusb->usbdev = usb_get_dev(interface_to_usbdev(intf));
-
-
 		for(i=0; i<interface_descriptor->desc.bNumEndpoints; i++){
 			endpoint = &interface_descriptor->endpoint[i].desc;
 
@@ -81,10 +166,9 @@ static int beagleusb_probe(struct usb_interface *intf,
 				(endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_BULK
 			   ){
 					printk("BEAGLEUSB: Bulk out endpoint");
-					beagleusb->bulk_out_endpointAddr = endpoint->bEndpointAddress;
+					outputEndPointAddress = endpoint->bEndpointAddress;
+					//beagleusb->bulk_out_endpointAddr = endpoint->bEndpointAddress;
 					break;
-
-					//beagleusb->bulk_out_pipe = usb_sndbulkpipe(beagleaudio->udev, endpoint->bEndpointAddress);
 				}
 		}
 
@@ -95,16 +179,31 @@ static int beagleusb_probe(struct usb_interface *intf,
 				(endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_BULK
 			   ){
 					printk("BEAGLEUSB: Bulk in endpoint\n");
-					beagleusb->bulk_in_endpointAddr = endpoint->bEndpointAddress;
+					inputEndPointAddress = endpoint->bEndpointAddress;
+					bInterval = endpoint->bInterval;
+					//beagleusb->bulk_in_endpointAddr = endpoint->bEndpointAddress;
+					//beagleusb->bInterval = endpoint->bInterval;
 					break;
-
-					//inputPipe = usb_rcvbulkpipe(beagleaudio->udev, endpoint->bEndpointAddress);
-					///interval = endpoint->bInterval;
 				}
 		}
 
-		usb_set_intfdata(intf, beagleusb);
 
+		/* Device structure */
+		beagleusb = beagle_allocate_device();
+		if (beagleusb == NULL)
+			return -ENOMEM;
+
+		beagleusb->dev = dev;
+		beagleusb->usbdev = usb_get_dev(interface_to_usbdev(intf));
+		beagleusb->bulk_in_endpointAddr = inputEndPointAddress;
+		beagleusb->bulk_out_endpointAddr = outputEndPointAddress;
+
+
+		init_input_device(beagleusb, intf);
+
+
+		usb_set_intfdata(intf, beagleusb);
+		device_set_wakeup_enable(&beagleusb->usbdev->dev, 1);
 
 		ret = beagleaudio_audio_init(beagleusb);
 		if (ret < 0)

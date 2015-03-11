@@ -1,9 +1,6 @@
-/*	Beaglebone USB Driver for Android Device Using AOA v2.0 Protocol
+/*	 Beaglebone USB Driver for Android Device Using AOA v2.0 Protocol
  *
  *   Copyright (C) 2014  Azizul Hakim
- *   
- *	 Work on this driver is mostly based on the work of Federico Simoncelli
- *	 for Fushicai USBTV007 Audio-Video Grabber
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by

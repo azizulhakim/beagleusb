@@ -25,31 +25,53 @@
 #define BEAGLEAUDIO_AUDIO_BUFFER	65536
 #define PCM_PACKET_SIZE 			4096
 
+struct beagleinput{
+	struct input_dev*		inputdev;
+	unsigned char 			old[8];
+	struct urb*				inputUrb;
+	char 					name[128];
+	char 					phys[64];
+
+	unsigned char*			new;
+	dma_addr_t 				new_dma;
+};
 
 struct beagleaudio {
-	struct snd_card *snd;
-	struct snd_pcm_substream *snd_substream;
-	atomic_t snd_stream;
-	struct urb *snd_bulk_urb;
-	size_t snd_buffer_pos;
-	size_t snd_period_pos;
+	struct		snd_card *snd;
+	struct		snd_pcm_substream *snd_substream;
+	atomic_t	snd_stream;
+	struct		urb *snd_bulk_urb;
+	size_t		snd_buffer_pos;
+	size_t		snd_period_pos;
 };
 
 struct beagleusb {
-	struct device *dev;
-	struct usb_device *usbdev;
-	struct work_struct snd_trigger;
-	__u8	bulk_in_endpointAddr;
-	__u8	bulk_out_endpointAddr;
+	struct 					device *dev;
+	struct 					usb_device *usbdev;
+	struct 					work_struct snd_trigger;
+	__u8					bulk_in_endpointAddr;
+	__u8					bulk_out_endpointAddr;
+	__u8					bInterval;
+	char 					name[128];
+	char 					phys[64];
 
 	/* audio */
-	struct beagleaudio* audio;
+	struct beagleaudio* 	audio;
+
+	/* input */
+	struct beagleinput* 	input;
 };
 
+/* audio functions */
 int beagleaudio_audio_init(struct beagleusb *beagleusb);
 void beagleaudio_audio_free(struct beagleusb *beagleusb);
 void beagleaudio_audio_suspend(struct beagleusb *beagleusb);
 void beagleaudio_audio_resume(struct beagleusb *beagleusb);
 
-
+/* input functions */
+int handle_mouse(struct beagleinput* mouse);
+int handle_keyboard(struct beagleinput* kbd);
+int handle_control(struct beagleinput* input);
+int handle_random_key(struct beagleinput* kbd);
+void usb_inputurb_complete(struct urb *urb);
 #endif
