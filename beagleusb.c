@@ -270,6 +270,7 @@ static void beagleusb_disconnect(struct usb_interface *intf)
 struct usb_device_id beagleusb_id_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x18D1, 0x4E41, 255, 255, 0) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x18D1, 0x4E42, 255, 255, 0) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x18D1, 0x2D00, 255, 255, 0) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x18D1, 0x2D01, 255, 255, 0) },
 	{}
 };
