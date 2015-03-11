@@ -17,7 +17,7 @@ How To Test:
 
 2. Make and install the kernel module. Command to install "sudo insmod beagle.ko"
 
-3. Download android app source from https://github.com/azizulhakim/BeagleRemoteDisplay. Build the source and install apk in android device. You can also find an APK in this repository under "APK" folder.
+3. Download android app source from https://github.com/azizulhakim/BeagleRemoteDisplay. Build the source and install apk in android device. You can also find an APK in this repository under "Test" folder.
 
 4. Connect your android device. Run the app and click on "Connect" button
 
