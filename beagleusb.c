@@ -22,7 +22,7 @@
 #include "aoa.h"
 #include "input.h"
 
-struct beagleusb* beagle_allocate_device(){
+struct beagleusb* beagle_allocate_device(void){
 	struct beagleusb *beagleusb;
 
 	beagleusb = kzalloc(sizeof(struct beagleusb), GFP_KERNEL);
