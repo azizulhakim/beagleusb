@@ -21,6 +21,7 @@
 #define BEAGLEUSB_H 1
 
 #include "beagle-audio.h"
+#include "video.h"
 
 #define BEAGLEAUDIO_AUDIO_BUFFER	65536
 #define PCM_PACKET_SIZE 			4096
@@ -57,6 +58,9 @@ struct beagleusb {
 
 	/* audio */
 	struct beagleaudio* 	audio;
+
+	/* video */
+	struct beaglevideo video;
 
 	/* input */
 	struct beagleinput* 	input;

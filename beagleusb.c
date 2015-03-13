@@ -21,6 +21,7 @@
 #include "beagleusb.h"
 #include "aoa.h"
 #include "input.h"
+#include "video.h"
 
 struct beagleusb* beagle_allocate_device(){
 	struct beagleusb *beagleusb;

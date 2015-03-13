@@ -38,17 +38,15 @@ struct urb_list {
 	size_t size;
 };
 
-struct dlfb_data {
-	struct usb_device *udev;
-	struct device *gdev; /* &udev->dev */
+struct beaglevideo{
 	struct fb_info *info;
 	struct urb_list urbs;
-	struct kref kref;
+
+	int blank_mode; /*one of FB_BLANK_ */
+
 	char *backing_buffer;
 	int fb_count;
 	bool virtualized; /* true when physical usb device not present */
-	struct delayed_work init_framebuffer_work;
-	struct delayed_work free_framebuffer_work;
 	atomic_t usb_active; /* 0 = update virtual buffer, but no usb traffic */
 	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
 	char *edid; /* null until we read edid from hw or get from sysfs */
@@ -57,29 +55,27 @@ struct dlfb_data {
 	int base16;
 	int base8;
 	u32 pseudo_palette[256];
-	int blank_mode; /*one of FB_BLANK_ */
-	/* blit-only rendering path metrics, exposed through sysfs */
 	atomic_t bytes_rendered; /* raw pixel-bytes driver asked to render */
 	atomic_t bytes_identical; /* saved effort with backbuffer comparison */
 	atomic_t bytes_sent; /* to usb, after compression including overhead */
 	atomic_t cpu_kcycles_used; /* transpired during pixel processing */
-	u8 bulk_in_add;	/* bulk in endpoint address */
-	u8 bulk_out_add; /* bulk in endpoint address */
 	unsigned char *	bulk_in_buffer;	/* the buffer to in data */
+};
+
+struct dlfb_data {
+	struct usb_device *usbdev;
+	struct device *dev; /* &udev->dev */
+	struct kref kref;
+	struct delayed_work init_framebuffer_work;
+	struct delayed_work free_framebuffer_work;
+
+	/* blit-only rendering path metrics, exposed through sysfs */
+	__u8 bulk_in_endpointAddr;	/* bulk in endpoint address */
+	__u8 bulk_out_endpointAddr; /* bulk in endpoint address */
 	size_t	bulk_in_size;	/* the size of the in buffer */
 
-	char *outBuffer;
-	struct urb* outUrb;
 
-	/* variables for keyboard, mouse & control message*/
-	char name[128];
-	char phys[64];
-	unsigned char old[8];
-	unsigned char *new;
-	dma_addr_t new_dma;
-	struct urb *irq;
-	struct input_dev *input_dev;
-	int bInterval;
+	struct beaglevideo video;
 };
 
 #define NR_USB_REQUEST_I2C_SUB_IO 0x02
@@ -123,7 +119,7 @@ struct dlfb_data {
 #endif
 
 /* remove once this gets added to sysfs.h */
-#define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
+//#define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
 
 /*
  * udlfb is both a usb device, and a framebuffer device.
@@ -158,9 +154,9 @@ struct dlfb_data {
 #define vzalloc vmalloc
 #endif
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 33)
-#define usb_alloc_coherent usb_buffer_alloc
-#define usb_free_coherent usb_buffer_free
-#endif
+//#if LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 33)
+//#define usb_alloc_coherent usb_buffer_alloc
+//#define usb_free_coherent usb_buffer_free
+//#endif
 
 #endif
