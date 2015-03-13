@@ -11,7 +11,7 @@ How To Test:
 
 	After you get those info, you can just replace line 271 with following line format(including "comma"):
 
-	{ USB_DEVICE_AND_INTERFACE_INFO(vendor_id, product_id, bInterfaceClass, bInterfaceSubclass, bProtocol) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(idVendor, idProduct, bInterfaceClass, bInterfaceSubClass, bInterfaceProtocol) },
 
 
 
