@@ -23,6 +23,10 @@
 #include "beagle-audio.h"
 #include "video.h"
 
+#define AUDIO 		1
+#define INPUT		1
+#define VIDEO		1
+
 #define BEAGLEAUDIO_AUDIO_BUFFER	65536
 #define PCM_HEADER_SIZE				4
 #define PCM_DATA_SIZE	 			4096

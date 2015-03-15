@@ -30,21 +30,29 @@ struct beagleusb* beagle_allocate_device(){
 	if (beagleusb == NULL)
 		goto ERROR;
 
+	#if AUDIO
 	beagleusb->audio = kzalloc(sizeof(struct beagleaudio), GFP_KERNEL);
 	if (beagleusb->audio == NULL)
 		goto AUDIO_ALLOC_ERROR;
+	#endif
 
+	#if INPUT
 	beagleusb->input = kzalloc(sizeof(struct beagleinput), GFP_KERNEL);
 	if (beagleusb->input == NULL)
 		goto INPUT_ALLOC_ERROR;
+	#endif
 
 	return beagleusb;
 
+#if INPUT
 INPUT_ALLOC_ERROR:
 	kfree(beagleusb->audio);
+#endif
 
+#if AUDIO
 AUDIO_ALLOC_ERROR:
 	kfree(beagleusb);
+#endif
 	
 ERROR:
 	return NULL;
@@ -200,15 +208,19 @@ static int beagleusb_probe(struct usb_interface *intf,
 		beagleusb->bulk_out_endpointAddr = outputEndPointAddress;
 
 
+		#if INPUT
 		init_input_device(beagleusb, intf);
+		#endif
 
 
 		usb_set_intfdata(intf, beagleusb);
 		device_set_wakeup_enable(&beagleusb->usbdev->dev, 1);
 
+		#if AUDIO
 		ret = beagleaudio_audio_init(beagleusb);
 		if (ret < 0)
 			goto beagleaudio_audio_fail;
+		#endif
 
 		dev_info(beagleusb->dev, "BeagleBone USB Keyboard, Mouse, Audio Playback Driver\n");
 
@@ -238,10 +250,12 @@ static int beagleusb_probe(struct usb_interface *intf,
 
 	goto exit;
 
+#if AUDIO
 beagleaudio_audio_fail:
 	printk("beagleaudio_audio_fail\n");
 	kfree(beagleusb->audio);
 	kfree(beagleusb);
+#endif
 
 exit:
 	return ret;
@@ -258,7 +272,9 @@ static void beagleusb_disconnect(struct usb_interface *intf)
 	if (!beagleusb)
 		return;
 
+	#if AUDIO
 	beagleaudio_audio_free(beagleusb);
+	#endif
 
 	if (beagleusb->usbdev != NULL){
 		printk("usb_put_dev start\n");
