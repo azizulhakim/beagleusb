@@ -131,6 +131,7 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 	unsigned int pcm_buffer_size;
 	unsigned int len, ret, i;
 	char k;
+	char *dataPointer;
 
 	printk("PCM URB Received\n");
 
@@ -164,35 +165,36 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 	snd_pcm_stream_lock(substream);
 
 	pcm_buffer_size = snd_pcm_lib_buffer_bytes(substream);
-	if (beagleusb->audio->snd_buffer_pos + PCM_PACKET_SIZE <= pcm_buffer_size){
-		memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer, runtime->dma_area + beagleusb->audio->snd_buffer_pos, PCM_PACKET_SIZE);
+	if (beagleusb->audio->snd_buffer_pos + PCM_DATA_SIZE <= pcm_buffer_size){
+		memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer + PCM_HEADER_SIZE, runtime->dma_area + beagleusb->audio->snd_buffer_pos, PCM_DATA_SIZE);
 		counter++;
 	}
 	else{
 		len = pcm_buffer_size - beagleusb->audio->snd_buffer_pos;
 
-		memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer, runtime->dma_area + beagleusb->audio->snd_buffer_pos, len);
-		memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer + len, runtime->dma_area, PCM_PACKET_SIZE - len);	
+		memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer + PCM_HEADER_SIZE, runtime->dma_area + beagleusb->audio->snd_buffer_pos, len);
+		memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer + PCM_HEADER_SIZE + len, runtime->dma_area, PCM_DATA_SIZE - len);	
 		counter++;
 	}
+	dataPointer = (char*)(beagleusb->audio->snd_bulk_urb->transfer_buffer);		// this is audio packet
+	dataPointer[0] = (char)DATA_AUDIO;
+	//dataPointer[1] = 0;
+	//dataPointer[2] = 0;
+	//dataPointer[3] = 0;
 
 	printk("Counter = %d\n", counter);
-	printk("Values = \n");
-	if (counter <= 24){
-
-		for (i=0; i<150; i++){
-			k = ((char*)beagleusb->audio->snd_bulk_urb->transfer_buffer)[i];
-			printk(" %3d", k);
-		}
-		printk("\n");
+	for (i=0; i<10; i++){
+		k = ((char*)beagleusb->audio->snd_bulk_urb->transfer_buffer)[i];
+		printk(" %3d", k);
 	}
+	printk("\n");
 
 	period_elapsed = 0;
-	beagleusb->audio->snd_buffer_pos += PCM_PACKET_SIZE;
+	beagleusb->audio->snd_buffer_pos += PCM_DATA_SIZE;
 	if (beagleusb->audio->snd_buffer_pos >= pcm_buffer_size)
 		beagleusb->audio->snd_buffer_pos -= pcm_buffer_size;
 
-	beagleusb->audio->snd_period_pos += PCM_PACKET_SIZE;
+	beagleusb->audio->snd_period_pos += PCM_DATA_SIZE;
 	if (beagleusb->audio->snd_period_pos >= runtime->period_size) {
 		beagleusb->audio->snd_period_pos %= runtime->period_size;
 		period_elapsed = 1;
@@ -224,13 +226,13 @@ static int beagleaudio_audio_start(struct beagleusb* beagleusb)
 	pipe = usb_sndbulkpipe(beagleusb->usbdev, beagleusb->bulk_out_endpointAddr); //beagleusb->audio->bulk_out_pipe;
 
 	beagleusb->audio->snd_bulk_urb->transfer_buffer = kzalloc(
-		PCM_PACKET_SIZE, GFP_KERNEL);
+		DATA_PACKET_SIZE, GFP_KERNEL);
 
 	if (beagleusb->audio->snd_bulk_urb->transfer_buffer == NULL)
 		goto err_transfer_buffer;
 
 	usb_fill_bulk_urb(beagleusb->audio->snd_bulk_urb, beagleusb->usbdev, pipe,
-		beagleusb->audio->snd_bulk_urb->transfer_buffer, PCM_PACKET_SIZE,
+		beagleusb->audio->snd_bulk_urb->transfer_buffer, DATA_PACKET_SIZE,
 		beagleaudio_audio_urb_received, beagleusb);
 
 	ret = usb_clear_halt(beagleusb->usbdev, pipe);
