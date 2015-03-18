@@ -225,8 +225,17 @@ static int beagleusb_probe(struct usb_interface *intf,
 		#if VIDEO
 		if (dlfb_video_init(beagleusb)){
 			ret = -ENOMEM;
-			goto beagleaudio_audio_fail;
+			goto beaglevideo_fail;
 		}
+
+		kref_get(&beagleusb->kref); /* matching kref_put in free_framebuffer_work */
+
+		/* We don't register a new USB class. Our client interface is fbdev */
+
+		/* Workitem keep things fast & simple during USB enumeration */
+		INIT_DELAYED_WORK(&beagleusb->init_framebuffer_work,
+				  dlfb_init_framebuffer_work);
+		schedule_delayed_work(&beagleusb->init_framebuffer_work, 0);
 		#endif
 
 		dev_info(beagleusb->dev, "BeagleBone USB Keyboard, Mouse, Audio Playback Driver\n");
@@ -262,6 +271,11 @@ beagleaudio_audio_fail:
 	printk("beagleaudio_audio_fail\n");
 	kfree(beagleusb->audio);
 	kfree(beagleusb);
+#endif
+
+#if VIDEO
+beaglevideo_fail:
+	printk("beagule_video fail\n");
 #endif
 
 exit:

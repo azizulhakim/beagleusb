@@ -1500,7 +1500,7 @@ static int dlfb_select_std_channel(struct beagleusb *dev)
 	return ret;
 }
 
-static void dlfb_init_framebuffer_work(struct work_struct *work);
+//static void dlfb_init_framebuffer_work(struct work_struct *work);
 
 int dlfb_video_init(struct beagleusb *dev){
 
@@ -1523,7 +1523,7 @@ int dlfb_video_init(struct beagleusb *dev){
 	return 0;
 }
 
-static void dlfb_init_framebuffer_work(struct work_struct *work)
+void dlfb_init_framebuffer_work(struct work_struct *work)
 {
 	struct beagleusb *dev = container_of(work, struct beagleusb,
 					     init_framebuffer_work.work);

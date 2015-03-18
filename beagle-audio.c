@@ -24,6 +24,7 @@
 #include <sound/initval.h>
 #include <sound/ac97_codec.h>
 #include <sound/pcm_params.h>
+#include <linux/module.h>
 
 #include "beagleusb.h"
 #include "beagle-audio.h"
