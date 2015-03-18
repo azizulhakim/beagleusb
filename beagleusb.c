@@ -21,7 +21,7 @@
 #include "beagleusb.h"
 #include "aoa.h"
 #include "input.h"
-#include "video.h"
+//#include "video.h"
 
 struct beagleusb* beagle_allocate_device(){
 	struct beagleusb *beagleusb;
@@ -220,6 +220,13 @@ static int beagleusb_probe(struct usb_interface *intf,
 		ret = beagleaudio_audio_init(beagleusb);
 		if (ret < 0)
 			goto beagleaudio_audio_fail;
+		#endif
+
+		#if VIDEO
+		if (dlfb_video_init(beagleusb)){
+			ret = -ENOMEM;
+			goto beagleaudio_audio_fail;
+		}
 		#endif
 
 		dev_info(beagleusb->dev, "BeagleBone USB Keyboard, Mouse, Audio Playback Driver\n");

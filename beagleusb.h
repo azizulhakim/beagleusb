@@ -21,7 +21,7 @@
 #define BEAGLEUSB_H 1
 
 #include "beagle-audio.h"
-#include "video.h"
+#include "vid.h"
 
 #define AUDIO 		1
 #define INPUT		1
@@ -57,18 +57,23 @@ struct beagleaudio {
 struct beagleusb {
 	struct 					device *dev;
 	struct 					usb_device *usbdev;
-	struct 					work_struct snd_trigger;
 	__u8					bulk_in_endpointAddr;
 	__u8					bulk_out_endpointAddr;
 	__u8					bInterval;
+	size_t					bulk_in_size;
 	char 					name[128];
 	char 					phys[64];
 
+	struct kref				kref;
+
 	/* audio */
 	struct beagleaudio* 	audio;
+	struct 					work_struct snd_trigger;
 
 	/* video */
 	struct beaglevideo video;
+	struct delayed_work init_framebuffer_work;
+	struct delayed_work free_framebuffer_work;
 
 	/* input */
 	struct beagleinput* 	input;
