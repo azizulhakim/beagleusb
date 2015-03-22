@@ -427,12 +427,13 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	u8 *data;
 	u16 page_index = byte_offset/4096;
 	
-	data = kmalloc((2 + byte_width), GFP_KERNEL);
+	data = kmalloc((2 + 2 + byte_width), GFP_KERNEL);	// 4100 byte data, 4 byte header, 4096 byte payload
 	
 	if(data){
 		// Save page index
-		*data = page_index;
-		*(data+1) = page_index >> 8;
+		*(data) = 1;			// this is video data
+		*(data+1) = page_index;				// two byte page index
+		*(data+1+1) = page_index >> 8;
 	}
 	
 	int transferred = 0;
@@ -443,7 +444,7 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	line_end = next_pixel + byte_width;
 	
 	// Copy current page
-	memcpy(data + 2, line_start, byte_width);
+	memcpy(data + 2 + 2, line_start, byte_width);
 	
 	vline_count++;
 	
@@ -456,7 +457,7 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	 */
 	retval = usb_bulk_msg(dev->usbdev,
 	      usb_sndbulkpipe(dev->usbdev, dev->bulk_out_endpointAddr),
-	      data, byte_width + 2, &transferred, HZ*5);
+	      data, byte_width + 2 + 2, &transferred, HZ*5);
 		      
 	sent_ptr = transferred;
 		      

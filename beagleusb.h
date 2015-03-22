@@ -24,7 +24,7 @@
 #include "vid.h"
 
 #define AUDIO 		0
-#define INPUT		0
+#define INPUT		1
 #define VIDEO		1
 
 #define BEAGLEAUDIO_AUDIO_BUFFER	65536
