@@ -431,7 +431,7 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	
 	if(data){
 		// Save page index
-		*(data) = 1;			// this is video data
+		*(data) = (char)DATA_VIDEO;			// this is video data
 		*(data+1) = page_index;				// two byte page index
 		*(data+1+1) = page_index >> 8;
 	}

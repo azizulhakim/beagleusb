@@ -92,7 +92,7 @@ static int snd_beagleaudio_hw_params(struct snd_pcm_substream *substream,
 		params_buffer_bytes(hw_params));
 
 	if (rv < 0) {
-		dev_warn(chip->dev, "pcm audio buffer allocation failure %i\n", rv);
+		printk("pcm audio buffer allocation failure\n");
 		return rv;
 	}
 
@@ -156,8 +156,7 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 		printk("case ESHUTDOWN\n");
 		return;
 	default:
-		dev_warn(beagleusb->dev, "unknown audio urb status %i\n",
-			urb->status);
+		printk("unknown audio urb status %i\n", urb->status);
 	}
 
 	if (!atomic_read(&beagleusb->audio->snd_stream))

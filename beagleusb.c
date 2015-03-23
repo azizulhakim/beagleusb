@@ -238,7 +238,7 @@ static int beagleusb_probe(struct usb_interface *intf,
 		schedule_delayed_work(&beagleusb->init_framebuffer_work, 0);
 		#endif
 
-		dev_info(beagleusb->dev, "BeagleBone USB Keyboard, Mouse, Audio Playback Driver\n");
+		printk("BeagleBone USB Keyboard, Mouse, Audio Playback Driver\n");
 
 		return 0;
 	}
