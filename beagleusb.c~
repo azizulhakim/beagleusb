@@ -23,8 +23,12 @@
 #include "input.h"
 //#include "video.h"
 
-struct beagleusb* beagle_allocate_device(void){
+<<<<<<< HEAD
+struct beagleusb* beagle_allocate_device(){
 	int i;
+=======
+struct beagleusb* beagle_allocate_device(void){
+>>>>>>> master
 	struct beagleusb *beagleusb;
 
 	beagleusb = kzalloc(sizeof(struct beagleusb), GFP_KERNEL);
