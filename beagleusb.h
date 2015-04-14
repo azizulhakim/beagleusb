@@ -34,6 +34,9 @@
 #define DATA_AUDIO					1
 #define DATA_VIDEO					2
 
+
+#define NUM_URBS		100
+
 struct beagleinput{
 	struct input_dev*		inputdev;
 	unsigned char 			old[8];
@@ -63,6 +66,10 @@ struct beagleusb {
 	size_t					bulk_in_size;
 	char 					name[128];
 	char 					phys[64];
+
+	int						urbStart;
+	int						urbEnd;
+	char*					outUrbs[NUM_URBS];
 
 	struct kref				kref;
 

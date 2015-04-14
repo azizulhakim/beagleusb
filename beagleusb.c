@@ -24,6 +24,7 @@
 //#include "video.h"
 
 struct beagleusb* beagle_allocate_device(){
+	int i;
 	struct beagleusb *beagleusb;
 
 	beagleusb = kzalloc(sizeof(struct beagleusb), GFP_KERNEL);
@@ -41,6 +42,10 @@ struct beagleusb* beagle_allocate_device(){
 	if (beagleusb->input == NULL)
 		goto INPUT_ALLOC_ERROR;
 	#endif
+
+	for(i=0; i<NUM_URBS; i++){
+		beagleusb->outUrbs[i] = kzalloc(DATA_PACKET_SIZE, GFP_KERNEL);
+	}
 
 	return beagleusb;
 
