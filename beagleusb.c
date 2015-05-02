@@ -18,6 +18,7 @@
 
 #include <linux/module.h>
 
+#include "datamanager.h"
 #include "beagleusb.h"
 #include "aoa.h"
 #include "input.h"
@@ -44,7 +45,16 @@ struct beagleusb* beagle_allocate_device(void){
 	#endif
 
 	for(i=0; i<NUM_URBS; i++){
-		beagleusb->outUrbs[i] = kzalloc(DATA_PACKET_SIZE, GFP_KERNEL);
+		beagleusb->outUrbs[i].buffer = kzalloc(DATA_PACKET_SIZE, GFP_KERNEL);
+		usb_init_urb(&beagleusb->outUrbs[i].instance);
+		
+/*		usb_fill_bulk_urb(&beagleusb->outUrbs[i].instance, beagleusb->usbdev,
+			  usb_sndbulkpipe(beagleusb->usbdev, beagleusb->bulk_out_endpointAddr), 
+			  (void *)beagleusb->outUrbs[i].buffer,
+			  DATA_PACKET_SIZE,
+			  beagleaudio_audio_urb_received,
+			  beagleusb);
+*/
 	}
 
 	return beagleusb;
@@ -200,6 +210,9 @@ static int beagleusb_probe(struct usb_interface *intf,
 					break;
 				}
 		}
+
+		ringbuffer_init();
+		manager_init();
 
 
 		/* Device structure */

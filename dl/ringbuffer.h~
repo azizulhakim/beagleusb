@@ -1,0 +1,20 @@
+#ifndef RINGBUFFER_H
+#define RINGBUFFER_H 1
+
+#define BUFFER_SIZE	8
+
+
+
+struct buffer{
+	unsigned char *data;
+};
+
+struct buffer buffer[BUFFER_SIZE];
+static int start=-1;
+static unsigned int end = 0;
+
+void insert(unsigned char *data);
+unsigned char *get();
+
+
+#endif

@@ -41,6 +41,7 @@ struct urb_list {
 struct beaglevideo{
 	struct fb_info *info;
 	struct urb_list urbs;
+	struct urb*     video_urb;
 
 	int blank_mode; /*one of FB_BLANK_ */
 

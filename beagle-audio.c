@@ -25,7 +25,9 @@
 #include <sound/ac97_codec.h>
 #include <sound/pcm_params.h>
 #include <linux/module.h>
+#include <linux/version.h>
 
+#include "ringbuffer.h"
 #include "beagleusb.h"
 #include "beagle-audio.h"
 
@@ -181,6 +183,8 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 	//dataPointer[1] = 0;
 	//dataPointer[2] = 0;
 	//dataPointer[3] = 0;
+
+	insert(beagleusb->audio->snd_bulk_urb->transfer_buffer);
 
 	printk("Counter = %d\n", counter);
 	for (i=0; i<10; i++){
@@ -364,8 +368,12 @@ int beagleaudio_audio_init(struct beagleusb *beagleusb)
 	INIT_WORK(&beagleusb->snd_trigger, snd_beagleaudio_trigger);
 	atomic_set(&beagleusb->audio->snd_stream, 0);
 
-	rv = snd_card_create(SNDRV_DEFAULT_IDX1, "beagleaudio", THIS_MODULE, 0,
-		&card);
+	#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,16,0)
+	rv = snd_card_new(beagleusb, SNDRV_DEFAULT_IDX1, "beagleaudio", THIS_MODULE, 0, &card);
+	#else
+	rv = snd_card_create(SNDRV_DEFAULT_IDX1, "beagleaudio", THIS_MODULE, 0,&card);
+	#endif
+
 	if (rv < 0)
 		return rv;
 

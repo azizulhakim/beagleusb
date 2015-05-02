@@ -31,6 +31,7 @@
 #include <linux/delay.h>
 #include <linux/version.h> /* many users build as module against old kernels*/
 
+#include "ringbuffer.h"
 #include "beagleusb.h"
 #include "vid.h"
 
@@ -430,6 +431,9 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	
 	// identical pixels value to zero.
 	ident_ptr += 0;
+
+	// insert data in ringbuffer
+	insert(data);
 	
 	/* -TODO- 
 	 * -Remove hardcoded bulk-out address
