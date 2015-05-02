@@ -3,7 +3,19 @@
 
 #include "ringbuffer.h"
 
+spinlock_t bufferlock;
+struct semaphore countingsemaphore;
+
+
+RingBuffer buffer[BUFFER_SIZE];
+int start = -1;
+unsigned int end = 0;
+int itemcount = 0;
+
 void ringbuffer_init(void){
+	start=-1;
+	end = 0;
+	itemcount = 0;
 	spin_lock_init(&bufferlock);
 	sema_init(&countingsemaphore, 0);
 }
@@ -21,7 +33,7 @@ void insert(unsigned char *data){
 
 	itemcount = (itemcount + 1) % BUFFER_SIZE + 1;
 	if (itemcount < BUFFER_SIZE){
-//		up(&countingsemaphore);
+		up(&countingsemaphore);
 	}
 
 	printk("start = %d end = %d\n", start, end); 
