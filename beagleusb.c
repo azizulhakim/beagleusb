@@ -211,14 +211,14 @@ static int beagleusb_probe(struct usb_interface *intf,
 				}
 		}
 
-		ringbuffer_init();
-		manager_init();
-
 
 		/* Device structure */
 		beagleusb = beagle_allocate_device();
 		if (beagleusb == NULL)
 			return -ENOMEM;
+
+		ringbuffer_init();
+		manager_init(beagleusb);
 
 		beagleusb->dev = dev;
 		beagleusb->usbdev = usb_get_dev(interface_to_usbdev(intf));
