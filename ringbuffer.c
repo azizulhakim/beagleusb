@@ -32,11 +32,11 @@ void insert(unsigned char *data){
 	if (end == start) start = (start + 1) % BUFFER_SIZE;
 
 	itemcount = (itemcount + 1) % BUFFER_SIZE + 1;
-	if (itemcount < BUFFER_SIZE){
-		up(&countingsemaphore);
-	}
+//	if (itemcount < BUFFER_SIZE){
+//		up(&countingsemaphore);
+//	}
 
-	printk("start = %d end = %d\n", start, end); 
+	//printk("start = %d end = %d\n", start, end); 
 
 	spin_unlock(&bufferlock);
 }
@@ -44,7 +44,7 @@ void insert(unsigned char *data){
 unsigned char* get(void){
 	unsigned char* data;
 
-	down_interruptible(&countingsemaphore);
+//	down_interruptible(&countingsemaphore);
 	spin_lock(&bufferlock);
 
 	if (start < 0){
@@ -61,7 +61,7 @@ unsigned char* get(void){
 	}
 	
 	itemcount--;
-	printk("start = %d end = %d\n", start, end); 
+	printk("GET: start = %d end = %d\n", start, end); 
 
 	spin_unlock(&bufferlock);
 

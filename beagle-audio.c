@@ -184,7 +184,9 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 	//dataPointer[2] = 0;
 	//dataPointer[3] = 0;
 
+	#if BUFFERING
 	insert(beagleusb->audio->snd_bulk_urb->transfer_buffer);
+	#endif
 
 	printk("Counter = %d\n", counter);
 	for (i=0; i<10; i++){

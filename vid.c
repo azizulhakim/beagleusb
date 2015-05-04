@@ -99,6 +99,56 @@ static void dlfb_free_urb_list(struct beagleusb *dev);
 	printk(msg);
 }*/
 
+
+static void beagleusb_video_urb_received(struct urb *urb)
+{
+	#if BUFFERING
+	int ret = 0;
+	struct beagleusb *beagleusb = urb->context;
+	unsigned char *data;
+	#endif
+
+//	printk("PCM URB Received\n");
+
+	switch (urb->status) {
+	case 0:
+//		printk("case SUCCESS\n");
+		break;
+	case -ETIMEDOUT:
+		printk("case ETIMEDOUT\n");
+		return;
+	case -ENOENT:
+		printk("case ENOENT\n");
+		return;
+	case -EPROTO:
+		printk("case EPROTO\n");
+		return;
+	case -ECONNRESET:
+		printk("case ECONNRESET\n");
+		return;
+	case -ESHUTDOWN:
+		printk("case ESHUTDOWN\n");
+		return;
+	default:
+		printk("unknown audio urb status %i\n", urb->status);
+	}
+
+	#if BUFFERING
+	data = get();
+	if (data == NULL){
+		memset(beagleusb->video.videourb->transfer_buffer, 0, PCM_DATA_SIZE);
+	}
+	else{
+		memcpy(beagleusb->video.videourb->transfer_buffer, data, PCM_DATA_SIZE);
+		kfree(data);
+	}
+	ret = usb_submit_urb(urb, GFP_ATOMIC);
+	#endif
+
+//	printk("Video URB Received Exit\n");
+}
+
+
 /*
  * All DisplayLink bulk operations start with 0xAF, followed by specific code
  * All operations are written to buffers which then later get sent to device
@@ -432,8 +482,11 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	// identical pixels value to zero.
 	ident_ptr += 0;
 
-	// insert data in ringbuffer
+	#if BUFFERING	// insert data in ringbuffer
+
 	insert(data);
+
+	#else
 	
 	/* -TODO- 
 	 * -Remove hardcoded bulk-out address
@@ -449,7 +502,9 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	
 	if(data)
 		kfree(data);
-	
+
+	#endif
+
 	return 0;
 }
 
@@ -640,7 +695,7 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 	int bytes_identical = 0;
 	int bytes_rendered = 0;
 	
-	printk("A deferred io call occured\n");
+	//printk("A deferred io call occured\n");
 
 	if (!fb_defio)
 		return;
@@ -736,7 +791,7 @@ dlfb_ops_setcolreg(unsigned regno, unsigned red, unsigned green,
 {
 	int err = 0;
 
-	printk("dlfb_ops_setcolreg called\n");	
+	//printk("dlfb_ops_setcolreg called\n");	
 	
 	if (regno >= info->cmap.len)
 		return 1;
@@ -766,6 +821,10 @@ dlfb_ops_setcolreg(unsigned regno, unsigned red, unsigned green,
 static int dlfb_ops_open(struct fb_info *info, int user)
 {
 	struct beagleusb *dev = info->par;
+	#if VIDEO_URB
+	int pipe = 0;
+	int ret = 0;
+	#endif
 	
 	printk("dlfb_ops_open called\n");
 
@@ -805,6 +864,28 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 
 	pr_notice("open /dev/fb%d user=%d fb_info=%p count=%d\n",
 	    info->node, user, info, dev->video.fb_count);
+
+	#if VIDEO_URB
+	dev->video.videourb = usb_alloc_urb(0, GFP_KERNEL);
+	if (dev->video.videourb == NULL)
+		return -ENODEV;
+
+	pipe = usb_sndbulkpipe(dev->usbdev, dev->bulk_out_endpointAddr);
+
+	dev->video.videourb->transfer_buffer = kzalloc(
+		DATA_PACKET_SIZE, GFP_KERNEL);
+
+	if (dev->video.videourb->transfer_buffer == NULL)
+		return -ENODEV;
+
+	usb_fill_bulk_urb(dev->video.videourb, dev->usbdev, pipe,
+		dev->video.videourb->transfer_buffer, DATA_PACKET_SIZE,
+		beagleusb_video_urb_received, dev);
+
+	ret = usb_clear_halt(dev->usbdev, usb_sndbulkpipe(dev->usbdev, dev->bulk_out_endpointAddr));
+	ret = usb_submit_urb(dev->video.videourb, GFP_ATOMIC);
+	printk("URB Submitted %d\n", ret);
+	#endif
 
 	return 0;
 }
@@ -846,6 +927,16 @@ static void dlfb_free_framebuffer(struct beagleusb *dev)
 	
 	printk("dlfb_free_framebuffer called\n");
 
+        #if VIDEO_URB
+        if (dev->video.videourb) {
+                usb_kill_urb(dev->video.videourb);
+                kfree(dev->video.videourb->transfer_buffer);
+                usb_free_urb(dev->video.videourb);
+                dev->video.videourb = NULL;
+        }
+        #endif
+
+
 	if (info) {
 		int node = info->node;
 
@@ -882,8 +973,7 @@ static void dlfb_free_framebuffer_work(struct work_struct *work)
 	dlfb_free_framebuffer(dev);
 }
 /*
- * Assumes caller is holding info->lock mutex (for open and release at least)
- */
+ * Assumes caller is holding info->lock mutex (for open and release at least)  */
 static int dlfb_ops_release(struct fb_info *info, int user)
 {
 	struct beagleusb *dev = info->par;

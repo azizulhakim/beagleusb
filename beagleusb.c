@@ -217,8 +217,10 @@ static int beagleusb_probe(struct usb_interface *intf,
 		if (beagleusb == NULL)
 			return -ENOMEM;
 
+		#if BUFFERING
 		ringbuffer_init();
-		manager_init(beagleusb);
+		//manager_init(beagleusb);
+		#endif
 
 		beagleusb->dev = dev;
 		beagleusb->usbdev = usb_get_dev(interface_to_usbdev(intf));
@@ -235,12 +237,15 @@ static int beagleusb_probe(struct usb_interface *intf,
 		device_set_wakeup_enable(&beagleusb->usbdev->dev, 1);
 
 		#if AUDIO
+		printk("Audio Init start\n");
 		ret = beagleaudio_audio_init(beagleusb);
 		if (ret < 0)
 			goto beagleaudio_audio_fail;
+		printk("Audio Init end\n");
 		#endif
 
 		#if VIDEO
+		printk("Video Init start\n");
 		if (dlfb_video_init(beagleusb)){
 			ret = -ENOMEM;
 			goto beaglevideo_fail;
@@ -254,6 +259,7 @@ static int beagleusb_probe(struct usb_interface *intf,
 		INIT_DELAYED_WORK(&beagleusb->init_framebuffer_work,
 				  dlfb_init_framebuffer_work);
 		schedule_delayed_work(&beagleusb->init_framebuffer_work, 0);
+		printk("Video Init end\n");
 		#endif
 
 		printk("BeagleBone USB Keyboard, Mouse, Audio Playback Driver\n");

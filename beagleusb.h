@@ -24,8 +24,10 @@
 #include "vid.h"
 
 #define AUDIO 		0
-#define INPUT		1
+#define INPUT		0
 #define VIDEO		1
+#define BUFFERING	0
+#define VIDEO_URB	0
 
 #define BEAGLEAUDIO_AUDIO_BUFFER	65536
 #define PCM_HEADER_SIZE				4
