@@ -31,6 +31,7 @@
 #include <linux/delay.h>
 #include <linux/version.h> /* many users build as module against old kernels*/
 
+#include "datamanager.h"
 #include "ringbuffer.h"
 #include "beagleusb.h"
 #include "vid.h"
@@ -108,7 +109,7 @@ static void beagleusb_video_urb_received(struct urb *urb)
 	unsigned char *data;
 	#endif
 
-//	printk("PCM URB Received\n");
+//	printk("Video URB Received\n");
 
 	switch (urb->status) {
 	case 0:
@@ -144,6 +145,11 @@ static void beagleusb_video_urb_received(struct urb *urb)
 	}
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	#endif
+
+	//add_urb(urb, FREE);
+	//delete_urb(urb, OCCUPIED);
+	kfree(urb->transfer_buffer);
+	kfree(urb);
 
 //	printk("Video URB Received Exit\n");
 }
@@ -455,11 +461,15 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	const u8 *line_start, *line_end, *next_pixel;
 	int transferred = 0;
 	int retval;
+	struct urb* urb;
+	u16 page_index = byte_offset/4096;
+
 //	u32 dev_addr = dev->video.base16 + byte_offset;
 	
+	#if BUFFERING	// insert data in ringbuffer
+
 	// For page y-index encoding
 	u8 *data;
-	u16 page_index = byte_offset/4096;
 	
 	data = kmalloc((2 + 2 + byte_width), GFP_KERNEL);	// 4100 byte data, 4 byte header, 4096 byte payload
 	
@@ -480,11 +490,10 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	vline_count++;
 	
 	// identical pixels value to zero.
-	ident_ptr += 0;
+	ident_ptr += 0;	
+	insert(data);	
 
-	#if BUFFERING	// insert data in ringbuffer
-
-	insert(data);
+//	kfree(data);
 
 	#else
 	
@@ -492,7 +501,7 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	 * -Remove hardcoded bulk-out address
 	 * -can prefectch_line() be of some perf. boostr here? Check.
 	 */
-	retval = usb_bulk_msg(dev->usbdev,
+	/*retval = usb_bulk_msg(dev->usbdev,
 	      usb_sndbulkpipe(dev->usbdev, dev->bulk_out_endpointAddr),
 	      data, byte_width + 2 + 2, &transferred, HZ*5);
 		      
@@ -501,7 +510,38 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	printk("Return: %d transferred: %d \n", retval, transferred);
 	
 	if(data)
-		kfree(data);
+		kfree(data);*/
+
+	//urb = get_free_urb();
+
+	line_start = (u8 *) (front + byte_offset);
+
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	urb->transfer_buffer = kzalloc((2 + 2 + byte_width), GFP_KERNEL);
+	if(urb->transfer_buffer){
+		// Save page index
+		*((u8*)urb->transfer_buffer) = (char)DATA_VIDEO;			// this is video data
+		*((u8*)urb->transfer_buffer+1) = page_index;				// two byte page index
+		*((u8*)urb->transfer_buffer+1+1) = page_index >> 8;
+	}
+	memcpy(urb->transfer_buffer + 2 + 2, line_start, byte_width);
+
+	vline_count++;
+	
+	// identical pixels value to zero.
+	ident_ptr += 0;
+
+
+	if (urb != NULL){
+		//memcpy(urb->transfer_buffer, data, DATA_PACKET_SIZE);
+
+		//add_urb(urb, OCCUPIED);
+		usb_fill_bulk_urb(urb, dev->usbdev, usb_sndbulkpipe(dev->usbdev, dev->bulk_out_endpointAddr),
+						  urb->transfer_buffer, DATA_PACKET_SIZE,
+						  beagleusb_video_urb_received, dev);
+		usb_submit_urb(urb, GFP_ATOMIC);
+		//printk("Return: %d transferred: %d,  data[0] = %d \n", retval, transferred, data[0]);
+	}
 
 	#endif
 
