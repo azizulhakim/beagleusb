@@ -47,7 +47,6 @@ int handle_mouse(struct beagleinput* mouse){
 		case MOUSELEFT:
 			printk("Left\n");
 			input_report_key(mouse->inputdev, BTN_LEFT,   0x01);
-			input_sync(mouse->inputdev);
 			input_report_key(mouse->inputdev, BTN_LEFT,   0x00);
 			input_sync(mouse->inputdev);
 			break;

@@ -188,13 +188,6 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 	insert(beagleusb->audio->snd_bulk_urb->transfer_buffer);
 	#endif
 
-	printk("Counter = %d\n", counter);
-	for (i=0; i<10; i++){
-		k = ((char*)beagleusb->audio->snd_bulk_urb->transfer_buffer)[i];
-		printk(" %3d", k);
-	}
-	printk("\n");
-
 	period_elapsed = 0;
 	beagleusb->audio->snd_buffer_pos += PCM_DATA_SIZE;
 	if (beagleusb->audio->snd_buffer_pos >= pcm_buffer_size)
@@ -212,7 +205,6 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 	if (period_elapsed)
 		snd_pcm_period_elapsed(substream);
 
-	printk("submit urb = %p\n", urb);
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 
 	printk("PCM URB Received Exit  %d\n", ret);
@@ -242,8 +234,6 @@ static int beagleaudio_audio_start(struct beagleusb* beagleusb)
 		beagleaudio_audio_urb_received, beagleusb);
 
 	ret = usb_clear_halt(beagleusb->usbdev, pipe);
-	printk("usb_clear_halt: %d\n", ret);
-	printk("submit urb = %p\n", beagleusb->audio->snd_bulk_urb);
 	ret = usb_submit_urb(beagleusb->audio->snd_bulk_urb, GFP_ATOMIC);
 
 	printk("PCM Audio Start Exit %d\n", ret);
