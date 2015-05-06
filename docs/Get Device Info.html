@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="Docutils 0.11: http://docutils.sourceforge.net/" />
+<title>Building the S2E Platform</title>
+<link rel="stylesheet" href="./docs.css" type="text/css" />
+</head>
+
+<body>
+<div class="document" id="building-the-s2e-platform">
+<h1 class="title">Get Device Information</h1>
+
+An android device comes with multiple interfaces. For our purpose we need to use only one interface. But we can't select any interface randomly. We only need to select the interface that is meant for AOA/Accessory communication.
+
+Here I'll put a step-by-step guideline to select the proper interface for our purpose. Remember, we know we need to select the Accessory interface. That is our main hint in the next steps.
+
+<ol>
+<li>
+<div class="section">
+<pre class="literal-block">
+Connect your android device to your computer USB port.
+</pre>
+</div>
+</li>
+</p>
+
+<li>
+<div class="section">
+If you are testing with a google device like Nexus-7, you have to modify "adk/adk.c" file a little described in "For Google Device.txt". Otherwise you are good to follow next instruction.
+</div>
+</li>
+
+</p>
+
+<li>
+<div class="section">
+Open a terminal window and run "lsusb -v > device_info.txt" command. This command will create a <mark>device_info.txt</mark> file in your current directory, containing informations of all the connected USB devices in your system.
+</div>
+</li>
+
+</p>
+
+<li>
+<div class="section">
+Now open <mark>device_info.txt</mark> file with any text editor you like. You'll see a some texts organized in a tree like structure. The structure will be something like below:
+
+<pre class="literal-block">
+	Bus xxx Device xxx: ID xxxx:xxxx [Some human readable information about the device]
+		Device Descriptor:
+			Configuration Descriptor:
+				Interface Descriptor:
+				Interface Descriptor:
+				Interface Descriptor:
+
+	Bus xxx Device xxx: ID xxxx:xxxx [Some human readable information about the device]
+		Device Descriptor:
+			Configuration Descriptor:
+				Interface Descriptor:
+				Interface Descriptor:
+				Interface Descriptor:
+
+</pre>
+</p>
+Here each device descriptor corresponds to one of the USB devices connected to your computer. We want to find out the device descriptor for our android device. You can take a look of my Nexus-7 device descriptor section in <a href="Nexus 7 Descriptor.html">Nexus 7 Descriptor</a>.
+</div>
+</li>
+
+</p>
+
+<li>
+<div class="section">
+Now the remaining part is easy. Find out the device you want to use. In Device Descriptor section find out <mark>{idVendor, idProduct}</mark>.
+</div>
+</li>
+
+</p>
+
+<li>
+<div class="section">
+Next find out the interface you want to use. In the "Interface Descriptor" section find out {bInterfaceClass, bInterfaceSubclass, bProtocol}. 
+
+As an example, for my Nexus 7 I had the following informations:
+<pre class="literal-block">
+idVendor : 18d1
+idProduct : 4e42
+bInterfaceClass : 255  [0xFF in HEX]
+bInterfaceSubClass :255	[0xFF in HEX]
+bProtocol : 0
+</pre>
+</div>
+</li>
+
+</p>
+
+<mark>Note: For some device there is no clear specification about which interface is for AOA/Accessory mode. In that case try to contact the manufacturer or may be try with all available interfaces.</mark>

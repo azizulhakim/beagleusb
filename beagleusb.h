@@ -20,12 +20,11 @@
 #ifndef BEAGLEUSB_H
 #define BEAGLEUSB_H 1
 
+#include "features.h"
 #include "beagle-audio.h"
 #include "vid.h"
 
-#define AUDIO 		0
-#define INPUT		1
-#define VIDEO		1
+
 #define BUFFERING	0
 #define VIDEO_URB	0
 

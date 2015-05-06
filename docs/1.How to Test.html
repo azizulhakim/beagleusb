@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="Docutils 0.11: http://docutils.sourceforge.net/" />
+<title>Building the S2E Platform</title>
+<link rel="stylesheet" href="./docs.css" type="text/css" />
+
+</head>
+<body>
+<div class="document" id="building-the-s2e-platform">
+<h1 class="title">Build & Test BeagleUSB: An android based USB driver</h1>
+
+
+<div class="contents topic" id="contents">
+<p class="topic-title first">Contents</p>
+<ul class="simple">
+<li><a class="reference internal" href="#enable-features" id="id1">Enable Audio/Video/Input</a></li>
+<li><a class="reference internal" href="#modification" id="id2">Modification for Google Device</a></li>
+<li><a class="reference internal" href="#compile" id="id3">Compile</a></li>
+<li><a class="reference internal" href="#install" id="id4">Install</a></li>
+<li><a class="reference internal" href="#run" id="id5">Run & Test</a></li>
+</ul>
+</div>
+
+
+<div class="section" id="enable-features">
+<h1>Enable Audio/Video/Input</h1>
+Enable/disabe features in <mark>features.h</mark> file. 0 means disabled, 1 means enabled. So if you want to test only framebuffer driver but no audio or input, the <mark>features.h</mark> file should look like this:
+<pre class="literal-block">
+#define AUDIO 		0
+#define INPUT		0
+#define VIDEO		1
+</pre>
+</div>
+
+
+<div class="section" id="modification">
+<h1>Modification for Google Device</h1>
+If you are not using any Google device, you can skip this step. If you are using a Google device, like NEXUS, replace line 183 in <mark>adk/adk.c</mark> file with following line:
+<pre class="literal-block">
+	{USB_DEVICE_AND_INTERFACE_INFO(vendorId, productId, bInterfaceClass, bInterfaceSubclass, bProtocol)},
+</pre>
+<p/>To get the <mark>vendorId, productId, bInterfaceClass, bInterfaceSubclass, bProtocol</mark> informations, follow <a href="Get Device Info.html">Get Device Info</a>
+</div>
+
+
+<div class="section" id="compile">
+<h1>Compile & Build</h1>
+Assume source direcotry is "$SOURCE"
+Execute <mark>make</mark> command inside <mark>$SOURCE/adk</mark> directory and <mark>$SOURCE</mark> directory
+From a terminal go into <mark>$SOURCE/adk</mark> directory and execute <pre class="literal-block">make</pre>.
+It'll build the kernel binaries. Check if the <mark>adk.ko</mark> and <mark>beagle.ko</mark> binaries are generated.
+</div>
+
+<div class="section" id="install">
+<h1>Install</h1>
+In terminal, execute <mark>sudo insmod adk.ko</mark>
+<p/>
+Attach android device in USB port. It'll ask for your permission to allow the device to do USB communication. Hit "OK" and the app will run.
+<p/>
+In terminal, execute <mark>sudo insmod beagle.ko</mark>. If everything goes perfectly, it'll create a framebuffer file <mark>/dev/</mark> directory. Ideally the name should be <mark>fb1</mark>, but right now the driver has some problem and you might see some other names like <mark>fb2</mark> or <mark>fb3<mark/> if you disconnect the device and connect again.
+</div>
+
+<div class="section" id="run">
+<h1> Run & Test </h1>
+Assuming the previous step created a file <mark>fb1</mark>, run the following command in terminal:
+<pre class="literal-block">
+FRAMEBUFFER=/dev/fb1 startx -- /usr/bin/X :1
+</pre>
+</div>
+
+</body>
+</div>
+</html>
