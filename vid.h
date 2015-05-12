@@ -73,7 +73,7 @@ struct beaglevideo{
 /* -BULK_SIZE as per usb-skeleton. Can we get full page and avoid overhead? */
 #define BULK_SIZE 512
 #define MAX_TRANSFER PAGE_SIZE*1
-#define WRITES_IN_FLIGHT (1)
+#define WRITES_IN_FLIGHT (100)
 
 #define MAX_VENDOR_DESCRIPTOR_SIZE 256
 

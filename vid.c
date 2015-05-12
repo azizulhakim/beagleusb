@@ -516,8 +516,10 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 
 	line_start = (u8 *) (front + byte_offset);
 
-	urb = usb_alloc_urb(0, GFP_KERNEL);
-	urb->transfer_buffer = kzalloc((2 + 2 + byte_width), GFP_KERNEL);
+	//urb = usb_alloc_urb(0, GFP_KERNEL);
+	//urb->transfer_buffer = kzalloc((2 + 2 + byte_width), GFP_KERNEL);
+
+	urb = dlfb_get_urb(dev);
 	if(urb->transfer_buffer){
 		// Save page index
 		*((u8*)urb->transfer_buffer) = (char)DATA_VIDEO;			// this is video data
@@ -536,10 +538,11 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 		//memcpy(urb->transfer_buffer, data, DATA_PACKET_SIZE);
 
 		//add_urb(urb, OCCUPIED);
-		usb_fill_bulk_urb(urb, dev->usbdev, usb_sndbulkpipe(dev->usbdev, dev->bulk_out_endpointAddr),
+		/*usb_fill_bulk_urb(urb, dev->usbdev, usb_sndbulkpipe(dev->usbdev, dev->bulk_out_endpointAddr),
 						  urb->transfer_buffer, DATA_PACKET_SIZE,
 						  beagleusb_video_urb_received, dev);
-		usb_submit_urb(urb, GFP_ATOMIC);
+		usb_submit_urb(urb, GFP_ATOMIC);*/
+		dlfb_submit_urb(dev, urb, DATA_PACKET_SIZE);
 		//printk("Return: %d transferred: %d,  data[0] = %d \n", retval, transferred, data[0]);
 	}
 
@@ -1625,7 +1628,7 @@ int dlfb_video_init(struct beagleusb *dev){
 	}
 
 
-	if (!dlfb_alloc_urb_list(dev, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
+	if (!dlfb_alloc_urb_list(dev, WRITES_IN_FLIGHT, DATA_PACKET_SIZE)) {
 		//retval = -ENOMEM;
 		pr_err("dlfb_alloc_urb_list failed\n");
 		return -ENOMEM;
@@ -1882,22 +1885,23 @@ static int dlfb_alloc_urb_list(struct beagleusb *dev, int count, size_t size)
 			break;
 		}
 		unode->urb = urb;
+		urb->transfer_buffer = kzalloc(DATA_PACKET_SIZE, GFP_KERNEL);
 
-		buf = usb_alloc_coherent(dev->usbdev, MAX_TRANSFER, GFP_KERNEL,
+		/*buf = usb_alloc_coherent(dev->usbdev, DATA_PACKET_SIZE, GFP_KERNEL,
 					 &urb->transfer_dma);
 		if (!buf) {
 			kfree(unode);
 			usb_free_urb(urb);
 			break;
-		}
+		}*/
 
 		// -TODO- Remove hardcoded bulkout address
 		/* urb->transfer_buffer_length set to actual before submit */
 		/*  */
 		usb_fill_bulk_urb(urb, dev->usbdev, 
 			usb_sndbulkpipe(dev->usbdev, dev->bulk_out_endpointAddr),
-			buf, size, dlfb_urb_completion, unode);
-		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+			urb->transfer_buffer, size, dlfb_urb_completion, unode);
+		//urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 		list_add_tail(&unode->entry, &dev->video.urbs.list);
 
@@ -1922,7 +1926,6 @@ static struct urb *dlfb_get_urb(struct beagleusb *dev)
 	unsigned long flags;
 	
 	printk("dlfb_get_urb called\n");
-
 	/* Wait for an in-flight buffer to complete and get re-queued */
 	ret = down_timeout(&dev->video.urbs.limit_sem, GET_URB_TIMEOUT);
 	if (ret) {
@@ -1954,9 +1957,9 @@ static int dlfb_submit_urb(struct beagleusb *dev, struct urb *urb, size_t len)
 
 	printk("dlfb_submit_urb called\n");	
 	
-	BUG_ON(len > dev->video.urbs.size);
+	//BUG_ON(len > dev->video.urbs.size);
 
-	urb->transfer_buffer_length = len; /* set to actual payload len */
+	//urb->transfer_buffer_length = len; /* set to actual payload len */
 	
 	/*
 	 * Any urb submits are ignored and returned a success code.
@@ -1966,6 +1969,7 @@ static int dlfb_submit_urb(struct beagleusb *dev, struct urb *urb, size_t len)
 	 */
 	
 	ret = 0;
+	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	
 	return ret;
 }
