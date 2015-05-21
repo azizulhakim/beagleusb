@@ -27,6 +27,7 @@
 
 #define BUFFERING	0
 #define VIDEO_URB	0
+#define RLE			0
 
 #define BEAGLEAUDIO_AUDIO_BUFFER	65536
 #define PCM_HEADER_SIZE				4

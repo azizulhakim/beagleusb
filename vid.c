@@ -94,6 +94,46 @@ static int dlfb_submit_urb(struct beagleusb *dev, struct urb * urb, size_t len);
 static int dlfb_alloc_urb_list(struct beagleusb *dev, int count, size_t size);
 static void dlfb_free_urb_list(struct beagleusb *dev);
 
+unsigned char *rle_out;
+
+int rle(unsigned char* in, int pos, int len, unsigned char *out){
+	int outlen = 0;
+	int i = 0, j = 0;
+	int outi = 0;
+	int count = 0;
+
+	if (len % 2 != 0){
+		printk("Length should be multiple of 2\n");
+		return 0;
+	}
+
+	i = pos;
+	while(i < len){
+		j = i;
+		count = 0;
+		while (j + 1 < len && in[i] == in[j] && in[i+1] == in[j+1]){
+			count++;
+			j+=2;
+		}
+
+		while (count > 255){
+			out[outi++] = in[i];
+			out[outi++] = in[i+1];
+			out[outi++] = 255;
+			count -= 255;
+			i += 2*255;
+		}
+		out[outi++] = in[i];
+		out[outi++] = in[i+1];
+		out[outi++] = count;
+		i += 2*count;
+	}
+	//printk("i = %d, outi = %d, j = %d\n", i, outi, j);
+	outlen = outi;
+	
+	return outlen;
+}
+
 
 /* Function added by me to fix make errors */
 /*static void err (char *msg){
@@ -113,7 +153,7 @@ static void beagleusb_video_urb_received(struct urb *urb)
 
 	switch (urb->status) {
 	case 0:
-//		printk("case SUCCESS\n");
+		printk("case SUCCESS\n");
 		break;
 	case -ETIMEDOUT:
 		printk("case ETIMEDOUT\n");
@@ -363,6 +403,9 @@ static char *dlfb_set_vid_cmds(char *wrptr, struct fb_var_screeninfo *var)
 static int dlfb_set_video_mode(struct beagleusb *dev,
 				struct fb_var_screeninfo *var)
 {
+	#if RLE
+		return 0;
+	#else
 	char *buf;
 	char *wrptr;
 	int retval = 0;
@@ -411,6 +454,7 @@ static int dlfb_set_video_mode(struct beagleusb *dev,
 	dev->video.blank_mode = FB_BLANK_UNBLANK;
 
 	return retval;
+	#endif
 }
 
 static int dlfb_ops_mmap(struct fb_info *info, struct vm_area_struct *vma)
@@ -462,16 +506,23 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	int transferred = 0;
 	int retval;
 	struct urb* urb;
+	struct urb* urb2;
 	u16 page_index = byte_offset/4096;
-
+	long int rled_len = 0;
+	u8 test[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+	int size;
+	int size3;
+	int i;
 //	u32 dev_addr = dev->video.base16 + byte_offset;
 	
 	#if BUFFERING	// insert data in ringbuffer
+	u8 *data;
+
+	data = kmalloc((2 + 2 + byte_width), GFP_KERNEL);	// 4100 byte data, 4 byte header, 4096 byte payload
 
 	// For page y-index encoding
-	u8 *data;
 	
-	data = kmalloc((2 + 2 + byte_width), GFP_KERNEL);	// 4100 byte data, 4 byte header, 4096 byte payload
+	//data = kmalloc((2 + 2 + byte_width), GFP_KERNEL);	// 4100 byte data, 4 byte header, 4096 byte payload
 	
 	if(data){
 		// Save page index
@@ -516,8 +567,6 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 
 	line_start = (u8 *) (front + byte_offset);
 
-	//urb = usb_alloc_urb(0, GFP_KERNEL);
-	//urb->transfer_buffer = kzalloc((2 + 2 + byte_width), GFP_KERNEL);
 
 	urb = dlfb_get_urb(dev);
 	if(urb->transfer_buffer){
@@ -526,7 +575,28 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 		*((u8*)urb->transfer_buffer+1) = page_index;				// two byte page index
 		*((u8*)urb->transfer_buffer+1+1) = page_index >> 8;
 	}
+	
+	#if RLE
+
+	rled_len = rle((unsigned char*)line_start, 0, 4096, rle_out);
+	*((u8*)urb->transfer_buffer+3) = 1;								// RLE used
+	*((u8*)urb->transfer_buffer+4) = rled_len;						// Lenght of RLE data
+	*((u8*)urb->transfer_buffer+5) = rled_len >> 8;
+	if (rled_len < 4094){
+		memcpy(urb->transfer_buffer + 6, rle_out, rled_len);
+		//printk("%p %p %p %p %p %p\n", *((u8*)urb->transfer_buffer + 0), *((u8*)urb->transfer_buffer + 1), *((u8*)urb->transfer_buffer + 2), 
+			//						*((u8*)urb->transfer_buffer + 3), *((u8*)urb->transfer_buffer + 4), *((u8*)urb->transfer_buffer + 5));
+
+	}
+	else{
+		printk("rled_len = %d\n", rled_len);
+	}
+
+	#else
+
 	memcpy(urb->transfer_buffer + 2 + 2, line_start, byte_width);
+
+	#endif
 
 	vline_count++;
 	
@@ -534,7 +604,7 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	ident_ptr += 0;
 
 
-	if (urb != NULL){
+	//if (urb != NULL){
 		//memcpy(urb->transfer_buffer, data, DATA_PACKET_SIZE);
 
 		//add_urb(urb, OCCUPIED);
@@ -542,9 +612,51 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 						  urb->transfer_buffer, DATA_PACKET_SIZE,
 						  beagleusb_video_urb_received, dev);
 		usb_submit_urb(urb, GFP_ATOMIC);*/
+
+		#if RLE
+		test[0] = (u8)((rled_len + PCM_HEADER_SIZE) & 0x000000ff);			// this is video data
+		test[1] = (u8)(((rled_len + PCM_HEADER_SIZE) >> 8) & 0xff);				// two byte page index
+		test[2] = (u8)(((rled_len + PCM_HEADER_SIZE) >> 16) & 0xff);
+		test[3] = (u8)(((rled_len + PCM_HEADER_SIZE) >> 24) & 0xff);
+
+		size = (long int)test[0] + ((long int)test[1] << 8) + ((long int)test[2] << 16) + ((long int)test[3] << 24);
+
+
+		/**((u8*)urb->transfer_buffer) = (char)DATA_VIDEO;
+		*((u8*)urb->transfer_buffer+1) = 0;
+		*((u8*)urb->transfer_buffer+1+1) = size;		
+		*((u8*)urb->transfer_buffer+1+1+1) = size >> 8;*/
+
+		size = rled_len;
+		dlfb_submit_urb(dev, urb, 512);
+
+		if (size > 506 && (size - 506 < 512 || size - 506 > 4096)){
+			urb2 = dlfb_get_urb(dev);
+			//printk("urb 2 init, size = %d\n", size);
+			//printk("submit < 512");
+			dlfb_submit_urb(dev, urb2, 512);
+		}
+		else if (size > 506){
+			urb2 = dlfb_get_urb(dev);
+			//printk("urb 2 init, size = %d, size2 = %d\n", size, size - 508);
+			dlfb_submit_urb(dev, urb2, size - 506);
+			//size3 = (int)(*((u8*)urb->transfer_buffer+1+1)) + (int)(*((u8*)urb->transfer_buffer+1+1+1) <<8);
+			//printk("submit > 512, size = %d size2 = %d, size3 = %p\n", size, size - 508, size3);
+
+			//size3 = (int)(*((u8*)urb->transfer_buffer+1+1));
+			///printk("size3 = %p\n", size3);
+			//size3 = (int)((*((u8*)urb->transfer_buffer+1+1+1)));
+			//printk("size3 = %p\n", size3);
+		}
+
+
+		//printk("transferred = %d\n", transferred);
+		//dlfb_submit_urb(dev, urb, rled_len + PCM_HEADER_SIZE);
+		#else
 		dlfb_submit_urb(dev, urb, DATA_PACKET_SIZE);
+		#endif
 		//printk("Return: %d transferred: %d,  data[0] = %d \n", retval, transferred, data[0]);
-	}
+	//}
 
 	#endif
 
@@ -959,7 +1071,7 @@ static void dlfb_release_urb_work(struct work_struct *work)
 	struct urb_node *unode = container_of(work, struct urb_node,
 					      release_urb_work.work);
 					      
-	printk("dlfb_release_urb_work called\n");
+	//printk("dlfb_release_urb_work called\n");
 
 	up(&unode->dev->video.urbs.limit_sem);
 }
@@ -1174,7 +1286,7 @@ static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 		dlfb_set_video_mode(dev, &info->var);
 	}
 
-	urb = dlfb_get_urb(dev);
+/*	urb = dlfb_get_urb(dev);
 	if (!urb)
 		return 0;
 
@@ -1183,14 +1295,14 @@ static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 	bufptr = dlfb_blanking(bufptr, blank_mode);
 	bufptr = dlfb_vidreg_unlock(bufptr);
 
-	/* seems like a render op is needed to have blank change take effect */
+	/* seems like a render op is needed to have blank change take effect
 	bufptr = dlfb_dummy_render(bufptr);
 
 	dlfb_submit_urb(dev, urb, bufptr -
 			(char *) urb->transfer_buffer);
 
 	dev->video.blank_mode = blank_mode;
-
+*/
 	return 0;
 }
 
@@ -1634,6 +1746,8 @@ int dlfb_video_init(struct beagleusb *dev){
 		return -ENOMEM;
 	}
 
+	rle_out = kmalloc(4100 * 3, GFP_KERNEL);
+
 	return 0;
 }
 
@@ -1955,11 +2069,11 @@ static int dlfb_submit_urb(struct beagleusb *dev, struct urb *urb, size_t len)
 {
 	int ret;
 
-	printk("dlfb_submit_urb called\n");	
+	//printk("dlfb_submit_urb called\n");	
 	
 	//BUG_ON(len > dev->video.urbs.size);
 
-	//urb->transfer_buffer_length = len; /* set to actual payload len */
+	urb->transfer_buffer_length = len; /* set to actual payload len */
 	
 	/*
 	 * Any urb submits are ignored and returned a success code.
@@ -1969,7 +2083,7 @@ static int dlfb_submit_urb(struct beagleusb *dev, struct urb *urb, size_t len)
 	 */
 	
 	ret = 0;
-	ret = usb_submit_urb(urb, GFP_ATOMIC);
+	ret = usb_submit_urb(urb, GFP_KERNEL);
 	
 	return ret;
 }
