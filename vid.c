@@ -547,24 +547,6 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 //	kfree(data);
 
 	#else
-	
-	/* -TODO- 
-	 * -Remove hardcoded bulk-out address
-	 * -can prefectch_line() be of some perf. boostr here? Check.
-	 */
-	/*retval = usb_bulk_msg(dev->usbdev,
-	      usb_sndbulkpipe(dev->usbdev, dev->bulk_out_endpointAddr),
-	      data, byte_width + 2 + 2, &transferred, HZ*5);
-		      
-	*sent_ptr = transferred;
-		      
-	printk("Return: %d transferred: %d \n", retval, transferred);
-	
-	if(data)
-		kfree(data);*/
-
-	//urb = get_free_urb();
-
 	line_start = (u8 *) (front + byte_offset);
 
 
@@ -632,30 +614,15 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 
 		if (size > 506 && (size - 506 < 512 || size - 506 > 4096)){
 			urb2 = dlfb_get_urb(dev);
-			//printk("urb 2 init, size = %d\n", size);
-			//printk("submit < 512");
 			dlfb_submit_urb(dev, urb2, 512);
 		}
 		else if (size > 506){
 			urb2 = dlfb_get_urb(dev);
-			//printk("urb 2 init, size = %d, size2 = %d\n", size, size - 508);
 			dlfb_submit_urb(dev, urb2, size - 506);
-			//size3 = (int)(*((u8*)urb->transfer_buffer+1+1)) + (int)(*((u8*)urb->transfer_buffer+1+1+1) <<8);
-			//printk("submit > 512, size = %d size2 = %d, size3 = %p\n", size, size - 508, size3);
-
-			//size3 = (int)(*((u8*)urb->transfer_buffer+1+1));
-			///printk("size3 = %p\n", size3);
-			//size3 = (int)((*((u8*)urb->transfer_buffer+1+1+1)));
-			//printk("size3 = %p\n", size3);
 		}
-
-
-		//printk("transferred = %d\n", transferred);
-		//dlfb_submit_urb(dev, urb, rled_len + PCM_HEADER_SIZE);
 		#else
 		dlfb_submit_urb(dev, urb, DATA_PACKET_SIZE);
 		#endif
-		//printk("Return: %d transferred: %d,  data[0] = %d \n", retval, transferred, data[0]);
 	//}
 
 	#endif
