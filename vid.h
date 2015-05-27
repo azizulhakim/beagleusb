@@ -151,4 +151,5 @@ struct beaglevideo{
 
 int dlfb_video_init(struct beagleusb *dev);
 void dlfb_init_framebuffer_work(struct work_struct *work);
+void dlfb_usb_disconnect(struct beagleusb *dev);
 #endif

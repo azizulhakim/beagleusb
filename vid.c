@@ -1805,15 +1805,13 @@ error:
 	dlfb_free_framebuffer(dev);
 }
 
-static void dlfb_usb_disconnect(struct usb_interface *interface)
+void dlfb_usb_disconnect(struct beagleusb *dev)
 {
-	struct beagleusb *dev;
 	struct fb_info *info;
 	int i;
 	
 	printk("dlfb_usb_disconnect called\n");
 
-	dev = usb_get_intfdata(interface);
 	info = dev->video.info;
 
 	pr_info("USB disconnect starting\n");
@@ -1843,18 +1841,12 @@ static void dlfb_usb_disconnect(struct usb_interface *interface)
 #endif
 	}
 
-	usb_set_intfdata(interface, NULL);
-	dev->usbdev = NULL;
-	dev->dev = NULL;
-
 	/* if clients still have us open, will be freed on last close */
 	if (dev->video.fb_count == 0)
 		schedule_delayed_work(&dev->free_framebuffer_work, 0);
 
 	/* release reference taken by kref_init in probe() */
-	kref_put(&dev->kref, dlfb_free);
-
-	/* consider beagleusb freed */
+	//kref_put(&dev->kref, dlfb_free);
 
 	return;
 }
@@ -1866,7 +1858,7 @@ static void dlfb_urb_completion(struct urb *urb)
 	struct beagleusb *dev = unode->dev;
 	unsigned long flags;
 
-	printk("dlfb_urb_completion called\n");
+	//printk("dlfb_urb_completion called\n");
 
 	/* sync/async unlink faults aren't errors */
 	if (urb->status) {
@@ -2006,7 +1998,7 @@ static struct urb *dlfb_get_urb(struct beagleusb *dev)
 	struct urb *urb = NULL;
 	unsigned long flags;
 	
-	printk("dlfb_get_urb called\n");
+	//printk("dlfb_get_urb called\n");
 	/* Wait for an in-flight buffer to complete and get re-queued */
 	ret = down_timeout(&dev->video.urbs.limit_sem, GET_URB_TIMEOUT);
 	if (ret) {

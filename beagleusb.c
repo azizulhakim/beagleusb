@@ -322,6 +322,10 @@ static void beagleusb_disconnect(struct usb_interface *intf)
 	beagleaudio_audio_free(beagleusb);
 	#endif
 
+	#if VIDEO
+	dlfb_usb_disconnect(beagleusb);
+	#endif
+
 	if (beagleusb->usbdev != NULL){
 		printk("usb_put_dev start\n");
 		usb_put_dev(beagleusb->usbdev);
