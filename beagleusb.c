@@ -24,6 +24,8 @@
 #include "input.h"
 //#include "video.h"
 
+int dropFrameRatio = 1;
+
 struct beagleusb* beagle_allocate_device(void){
 	int i;
 	struct beagleusb *beagleusb;

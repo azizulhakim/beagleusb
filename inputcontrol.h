@@ -30,3 +30,4 @@
 
 
 #define CNTRL_RESOLUTION	1
+#define CNTRL_DROPFRAME		2

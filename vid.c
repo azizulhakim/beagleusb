@@ -803,7 +803,7 @@ static void dlfb_ops_fillrect(struct fb_info *info,
  *   in fb_defio will cause a deadlock, when it also tries to
  *   grab the same mutex.
  */
- 
+int count = 0;
 static void dlfb_dpy_deferred_io(struct fb_info *info,
 				struct list_head *pagelist)
 {
@@ -827,15 +827,32 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 
 	start_cycles = get_cycles();
 
-	/* walk the written page list and render each to device */
+/*	#if DROPFRAME
+	int page_count = 0;
 	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
-
-		if (dlfb_render_hline(dev, &urb, (char *) info->fix.smem_start,
-				  &cmd, cur->index << PAGE_SHIFT,
-				  PAGE_SIZE, &bytes_identical, &bytes_sent))
-			goto error;
-		bytes_rendered += PAGE_SIZE;
+		page_count++;
 	}
+	printk("page_count = %d\n", page_count);
+	drop_ratio = page_count / 30;
+	if (drop_ratio == 0) drop_ratio = 1;
+*/
+
+	/* walk the written page list and render each to device */
+	if (count == 0){
+		list_for_each_entry(cur, &fbdefio->pagelist, lru) {
+
+			if (dlfb_render_hline(dev, &urb, (char *) info->fix.smem_start,
+					  &cmd, cur->index << PAGE_SHIFT,
+					  PAGE_SIZE, &bytes_identical, &bytes_sent))
+				goto error;
+			bytes_rendered += PAGE_SIZE;
+		}
+	}
+	if (dropFrameRatio != 0)
+		count = (count + 1) % dropFrameRatio;
+
+//	printk("count = %d\n", count);
+//	#endif
 
 error:
 	atomic_add(bytes_sent, &dev->video.bytes_sent);
@@ -1827,7 +1844,7 @@ void dlfb_usb_disconnect(struct beagleusb *dev)
 	 * temporarily removed to see if this fixes the disconnect freeze issue
 	 */
 	
-	//dlfb_free_urb_list(dev);
+	dlfb_free_urb_list(dev);
 
 	if (info) {
 

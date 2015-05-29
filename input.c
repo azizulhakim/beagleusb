@@ -113,7 +113,7 @@ int handle_control(struct beagleinput* input){
 	controlType = input->new[1];
 
 	for (i=0; i<8; i++)
-		printk("%d  ", (int)input->new[i]);
+		printk("CONTROL: %d  ", (int)input->new[i]);
 
 	switch (controlType){
 		case CNTRL_RESOLUTION:
@@ -123,6 +123,11 @@ int handle_control(struct beagleinput* input){
 			//printk("height = %d width = %d\n", DISPLAYHEIGHT, DISPLAYWIDTH);
 
 			break;
+		
+		case CNTRL_DROPFRAME:
+			dataPointer = (int)(input->new[2]);
+			if (dataPointer <= 0) dropFrameRatio = 1;
+			else dropFrameRatio = dataPointer;
 			
 		default:
 			break;
