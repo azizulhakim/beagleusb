@@ -36,7 +36,7 @@ static struct snd_pcm_hardware snd_beagleaudio_digital_hw = {
            SNDRV_PCM_INFO_INTERLEAVED |
            SNDRV_PCM_INFO_BLOCK_TRANSFER |
            SNDRV_PCM_INFO_MMAP_VALID),
-  .formats =          SNDRV_PCM_FMTBIT_S16_LE,
+  .formats =          SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U8,
   .rates =            SNDRV_PCM_RATE_44100,
   .rate_min =         44100,
   .rate_max =         44100,
