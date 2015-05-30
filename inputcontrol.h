@@ -8,7 +8,7 @@
  *   (at your option) any later version.
  *
  *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   but WITHOUT ANY WARRANTY without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
  *
@@ -31,3 +31,23 @@
 
 #define CNTRL_RESOLUTION	1
 #define CNTRL_DROPFRAME		2
+
+
+
+#define EVENT_TYPE_INDEX	0
+#define MOUSE_BTN_INDEX		1
+#define REL_X_INDEX			2
+#define REL_Y_INDEX			3
+#define REL_WHEEL_INDEX		4
+
+#define METAKEY_INDEX		5
+#define KEY_INDEX			7
+
+#define MOUSE_BTN_LEFT		1
+#define MOUSE_BTN_RIGHT		2
+
+#define SHIFT				1
+#define ALT					2
+#define CTRL				4
+#define DEL					8
+#define TAB					16

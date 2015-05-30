@@ -32,59 +32,23 @@ int handle_mouse(struct beagleinput* mouse){
 	int i = 2;
 	int x,y;
 	int control = 0;
+	signed char *data = mouse->new;
+	int	btn_left = data[MOUSE_BTN_INDEX] & (char)MOUSE_BTN_LEFT;
+	int btn_right = data[MOUSE_BTN_INDEX] & (char)MOUSE_BTN_RIGHT;
 
 	if (mouse == NULL)
 		goto error;
 
-	control = (int)mouse->new[1];
+	input_report_key(mouse->inputdev, BTN_LEFT,   btn_left);
+	input_report_key(mouse->inputdev, BTN_RIGHT,   btn_right);
 
-	switch(control)
-	{
-		case MOUSEDOUBLECLICK:
-			break;
-		case MOUSESINGLECLICK:
-			break;
-		case MOUSELEFT:
-			printk("Left\n");
-			input_report_key(mouse->inputdev, BTN_LEFT,   0x01);
-			input_report_key(mouse->inputdev, BTN_LEFT,   0x00);
-			input_sync(mouse->inputdev);
-			break;
+	x = (int)data[REL_X_INDEX];
+	y = (int)data[REL_Y_INDEX];
 
-		case MOUSERIGHT:
-			printk("Right\n");
-			input_report_key(mouse->inputdev, BTN_RIGHT,  0x01);
-			input_sync(mouse->inputdev);
-			input_report_key(mouse->inputdev, BTN_RIGHT,  0x00);
-			input_sync(mouse->inputdev);
-			break;
-		case MOUSEMOVE:
-			if (mouse->new[i+1] != 0 || mouse->new[i+3] != 0){
-				printk("%d %d\n", (int)mouse->new[i+1], (int)mouse->new[i+3]);
+	input_report_rel(mouse->inputdev, REL_X, x);
+	input_report_rel(mouse->inputdev, REL_Y, y);
 
-				x = (int)mouse->new[i+1];
-				y = (int)mouse->new[i+3];
 
-				// x *= (int)(1366 / DISPLAYWIDTH);
-				// y *= (int)(768 / DISPLAYHEIGHT);
-
-				if (mouse->new[i] == 1) {
-					x *= -1;
-				}
-
-				if (mouse->new[i+2]==1){
-					y *= -1;
-				}
-
-				input_report_rel(mouse->inputdev, REL_X, x);
-				input_report_rel(mouse->inputdev, REL_Y, y);
-				input_sync(mouse->inputdev);
-			}
-			break;
-
-		default:
-			break;
-	}
 
 	return 0;
 
@@ -95,12 +59,11 @@ int handle_mouse(struct beagleinput* mouse){
 int handle_keyboard(struct beagleinput *kbd){
 	int keyIndex;
 
-	keyIndex = kbd->new[2];
+	keyIndex = kbd->new[KEY_INDEX];
 	printk("keyIndex = %d\n", keyIndex);
 
 	input_report_key(kbd->inputdev, usb_kbd_keycode[keyIndex], 0x01);
 	input_report_key(kbd->inputdev, usb_kbd_keycode[keyIndex], 0x00);
-	input_sync(kbd->inputdev);
 
 	return 0;
 }
@@ -153,6 +116,8 @@ int handle_random_key(struct beagleinput* kbd){
 void usb_inputurb_complete(struct urb *urb)
 {
 	struct beagleusb* beagleusb = urb->context;
+	struct beagleinput* input = beagleusb->input;
+	signed char *data = input->new;
 	int filterId;
 	int i;
 
@@ -168,29 +133,16 @@ void usb_inputurb_complete(struct urb *urb)
 		goto resubmit;
 	}
 
-
 	filterId = beagleusb->input->new[0];
 	printk("filterId = %d\n", filterId);
-	switch(filterId){
-		case 64:
-			handle_random_key(beagleusb->input);
-			break;
-		case KEYBOARDCONTROL:
-			// handle keyboard
-			handle_keyboard(beagleusb->input);
-			break;
-		case MOUSECONTROL:
-			// handle mouse
 
-			handle_mouse(beagleusb->input);
-			break;
-
-		case CONTROLMESSAGE:
-			// handle contorl message
-			handle_control(beagleusb->input);
-			break;
-		default:
-			break;
+	if (filterId != CONTROLMESSAGE){
+		handle_keyboard(input);
+		handle_mouse(input);
+		input_sync(input->inputdev);
+	}
+	else{
+		handle_control(beagleusb->input);
 	}
 
 resubmit:

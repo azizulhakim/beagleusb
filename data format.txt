@@ -1,33 +1,35 @@
 8 Bits For Mouse/Keyboard Data Representation
 
- ----------------------------------------------
-| TYPE | SUBTYPE | X0 | X1 | X2 | X3 | X4 | X5 |
- ----------------------------------------------
+ --------------------------------------------------------------------------------
+| TYPE | MOUSE_BTN or CTRL_TYPE | MOUSE_X | MOUSE_Y | NIL | META_KEY | NIL | KEY |
+ --------------------------------------------------------------------------------
 
-TYPE =  MOUSE (0x01)
-		KEYBOARD (0x02)
-		CONTROL (0x03)
+TYPE =  CONTROL (0x03)
+		MOUSE/KEYBOARD (anything except 0x03)
 
-
-
-Mouse:
-	SUBTYPE - 	MOUSEMOVE			0x00
-				MOUSELEFT			0x01
-				MOUSERIGHT			0x02
-				MOUSEDOUBLECLICK	0x03
-				MOUSESINGLECLICK	0x04
-
-
-	X0 - 0/1 (X-axis movement +ve/-ve)
-	X1 - VAL (X-axis absolute movement)
-	X2 - 0/1 (Y-axis movement +ve/-ve)
-	X3 - VAL (Y-axis absolute movement)
-	X4 - NIL
-	X5 - NIL
-
-Keyboard:
-	SUBTYPE: NIL
-	X0-X5 : KEYCODE INDEX (0 means no data)
 
 Control:
-	Still Not Completed
+	CTRL_TYPE:	Control Event type. Right now only DROP_FRAME control is supported which allows user to drop frames to speed up video viewing experience. 
+	DROP_FRAME:	0x02
+
+
+Mouse/Keyboard:
+
+	MOUSE_BTN: Holds mouse button events masked in 8 bits.
+				
+			BTN_LEFT : 0x01
+			BTN_RIGHT: 0x02
+
+	MOUSE_X: Mouse pointer horizontal movement
+	MOUSE_Y: Mouse pointer vertical movement
+
+	
+	META_KEY: Holds keyboard metakeys masked in 8 bits
+			SHIFT:	0x01
+			ALT:	0x02
+			CTRL:	0x04
+			DEL:	0x08
+			TAB:	0x10
+
+
+	KEY:	Keyboard Character
