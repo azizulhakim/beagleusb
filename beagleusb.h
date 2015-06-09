@@ -30,6 +30,9 @@
 #define RLE			0
 #define DROPFRAME	1
 
+#define XRES		1024
+#define YRES		768
+
 #define BEAGLEAUDIO_AUDIO_BUFFER	65536
 #define PCM_HEADER_SIZE				4
 #define PCM_DATA_SIZE	 			4096

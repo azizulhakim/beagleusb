@@ -56,6 +56,19 @@ int handle_mouse(struct beagleinput* mouse){
 		return -1;
 }
 
+int start_metakey(struct beagleinput *kbd){
+
+	input_report_key(kbd->inputdev, 42, kbd->new[METAKEY_INDEX] & SHIFT);		// SHIFT
+	
+	return 0;
+}
+
+int stop_metakey(struct beagleinput *kbd){
+	input_report_key(kbd->inputdev, 42, 0);		// SHIFT
+
+	return 0;
+}
+
 int handle_keyboard(struct beagleinput *kbd){
 	int keyIndex;
 
@@ -137,8 +150,10 @@ void usb_inputurb_complete(struct urb *urb)
 	printk("filterId = %d\n", filterId);
 
 	if (filterId != CONTROLMESSAGE){
+		start_metakey(input);
 		handle_keyboard(input);
 		handle_mouse(input);
+		stop_metakey(input);
 		input_sync(input->inputdev);
 	}
 	else{

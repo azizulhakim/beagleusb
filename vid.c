@@ -649,7 +649,7 @@ int dlfb_handle_damage(struct beagleusb *dev, int x, int y,
 	 * -Remove this BB specific issue code
 	 * Exit if width and height are something else.
 	 */
-	if((width - x) != 1024 || (height - y) != 768){
+	if((width - x) != XRES || (height - y) != YRES){
 		printk("Dim. mismatch. Not sending\n");
 		return 0; 
 	}
@@ -1511,8 +1511,8 @@ static int dlfb_setup_modes(struct beagleusb *dev,
 		 */
 		//fb_vmode.xres = 800;
 		//fb_vmode.yres = 600;
-		fb_vmode.xres = 1024;
-		fb_vmode.yres = 768;
+		fb_vmode.xres = XRES;
+		fb_vmode.yres = YRES;
 		fb_vmode.refresh = 60;
 		default_vmode = fb_find_nearest_mode(&fb_vmode,
 						     &info->modelist);
