@@ -49,7 +49,7 @@ static struct snd_pcm_hardware snd_beagleaudio_digital_hw = {
   .periods_max =      1024,
 };
 
-int counter = 0;
+//int counter = 0;
 
 static int snd_beagleaudio_pcm_open(struct snd_pcm_substream *substream)
 {
@@ -135,6 +135,7 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 	unsigned int len, ret, i;
 	char k;
 	char *dataPointer;
+	size_t frame_bytes, chunk_length;
 
 	printk("PCM URB Received\n");
 
@@ -167,16 +168,16 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 	snd_pcm_stream_lock(substream);
 
 	pcm_buffer_size = snd_pcm_lib_buffer_bytes(substream);
-	if (beagleusb->audio->snd_buffer_pos + PCM_DATA_SIZE <= pcm_buffer_size){
+	frame_bytes = runtime->frame_bits >> 3;
+	chunk_length = PCM_DATA_SIZE / frame_bytes;
+	if (beagleusb->audio->snd_buffer_pos + chunk_length <= pcm_buffer_size){
 		memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer + PCM_HEADER_SIZE, runtime->dma_area + beagleusb->audio->snd_buffer_pos, PCM_DATA_SIZE);
-		counter++;
 	}
 	else{
 		len = pcm_buffer_size - beagleusb->audio->snd_buffer_pos;
 
 		memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer + PCM_HEADER_SIZE, runtime->dma_area + beagleusb->audio->snd_buffer_pos, len);
 		memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer + PCM_HEADER_SIZE + len, runtime->dma_area, PCM_DATA_SIZE - len);	
-		counter++;
 	}
 	dataPointer = (char*)(beagleusb->audio->snd_bulk_urb->transfer_buffer);		// this is audio packet
 	dataPointer[0] = (char)DATA_AUDIO;
@@ -189,11 +190,11 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 	#endif
 
 	period_elapsed = 0;
-	beagleusb->audio->snd_buffer_pos += PCM_DATA_SIZE;
+	beagleusb->audio->snd_buffer_pos += chunk_length;
 	if (beagleusb->audio->snd_buffer_pos >= pcm_buffer_size)
 		beagleusb->audio->snd_buffer_pos -= pcm_buffer_size;
 
-	beagleusb->audio->snd_period_pos += PCM_DATA_SIZE;
+	beagleusb->audio->snd_period_pos += chunk_length;
 	if (beagleusb->audio->snd_period_pos >= runtime->period_size) {
 		beagleusb->audio->snd_period_pos %= runtime->period_size;
 		period_elapsed = 1;
