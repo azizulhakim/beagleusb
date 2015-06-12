@@ -29,14 +29,16 @@
 #define VIDEO_URB	0
 #define RLE			0
 #define DROPFRAME	1
+#define VAR_RES		0				// Allow Variable Resolution @compile time
+									// Don't set it in audio enabled mode
 
-#define XRES		1024
+#define XRES		1024			// Always set to 1024x768 resolution if audio enabled
 #define YRES		768
 
 #define BEAGLEAUDIO_AUDIO_BUFFER	65536
 #define PCM_HEADER_SIZE				4
 #define PCM_DATA_SIZE	 			4096
-#define DATA_PACKET_SIZE 			4100
+#define DATA_PACKET_SIZE 			(2 * BPP * XRES) + PCM_HEADER_SIZE
 #define DATA_AUDIO					1
 #define DATA_VIDEO					2
 

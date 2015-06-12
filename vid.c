@@ -449,7 +449,11 @@ static int dlfb_set_video_mode(struct beagleusb *dev,
 	 * Transfer removal is handled in the submit_urb function
 	 * -TODO- Ensure the driver without such restriction
 	 */
+
+#if VAR_RES
+#else
 	retval = dlfb_submit_urb(dev, urb, writesize);
+#endif
 
 	dev->video.blank_mode = FB_BLANK_UNBLANK;
 
@@ -838,6 +842,58 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 */
 
 	/* walk the written page list and render each to device */
+#if VAR_RES
+	if (count == 0){
+		int dpy_count = 0;
+		int unsubmitted_urb = 0;
+		u32 frame_size = PCM_HEADER_SIZE + 2 * XRES * BPP;
+		u32 byte_offset = 0;
+		u32 start_offset = 0;
+		u32 end_offset = 0;
+		char *transfer_buffer;
+		u32 remaining_buffer;
+
+		list_for_each_entry(cur, &fbdefio->pagelist, lru) {
+			start_offset = cur->index << PAGE_SHIFT;
+			end_offset = start_offset + PAGE_SIZE;
+			byte_offset = start_offset;
+
+			while (byte_offset < end_offset){
+				u16 page_index = byte_offset / (2 * XRES * BPP);
+				if (unsubmitted_urb == 0){
+					urb = dlfb_get_urb(dev);
+					transfer_buffer = (char*)urb->transfer_buffer;
+					*(transfer_buffer) = (char)DATA_VIDEO;			// this is video data
+					*(transfer_buffer+1) = page_index;				// two byte page index
+					*(transfer_buffer+1+1) = page_index >> 8;
+
+					transfer_buffer += PCM_HEADER_SIZE;
+					remaining_buffer = 2 * XRES * BPP;
+				}
+
+				if (byte_offset + remaining_buffer < end_offset){
+					memcpy(transfer_buffer, (char *) info->fix.smem_start + byte_offset, remaining_buffer);
+					dlfb_submit_urb(dev, urb, 4 + 2 * XRES * BPP);
+					unsubmitted_urb = 0;
+					byte_offset += remaining_buffer;
+					remaining_buffer = 2 * XRES * BPP;
+				}
+				else{
+					memcpy(transfer_buffer, (char *) info->fix.smem_start + byte_offset, end_offset - byte_offset);
+					transfer_buffer += (end_offset - byte_offset);
+					remaining_buffer = 2 * XRES * BPP - (end_offset - byte_offset);
+					byte_offset += (end_offset - byte_offset);
+					unsubmitted_urb = 1;
+				}
+			}
+		}
+		if (unsubmitted_urb == 1){
+			dlfb_urb_completion(urb);
+		}
+	}
+	if (dropFrameRatio != 0)
+		count = (count + 1) % dropFrameRatio;
+#else
 	if (count == 0){
 		list_for_each_entry(cur, &fbdefio->pagelist, lru) {
 
@@ -853,6 +909,7 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 
 //	printk("count = %d\n", count);
 //	#endif
+#endif
 
 error:
 	atomic_add(bytes_sent, &dev->video.bytes_sent);
