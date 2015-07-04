@@ -18,6 +18,7 @@
 
 #define pr_fmt(fmt) "udlfb: " fmt
 
+#include <linux/kthread.h> 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -38,6 +39,7 @@
 
 // A temp var just to see how many times hline_render is being called.
 int vline_count = 0;
+
 
 static struct fb_fix_screeninfo dlfb_fix = {
 	.id =           "udlfb",
@@ -95,6 +97,41 @@ static int dlfb_alloc_urb_list(struct beagleusb *dev, int count, size_t size);
 static void dlfb_free_urb_list(struct beagleusb *dev);
 
 unsigned char *rle_out;
+
+#if LAZZY_MODE
+unsigned int lazzy_tracker[384][2];
+int lazzy_run = 1;
+
+struct task_struct* lazzy_thread;
+
+void lazzy_update(void* data){
+	struct beagleusb* beagleusb = (struct beagleusb*)data;
+	struct urb* urb;
+	int i = 0;
+
+	while(lazzy_run){
+		for (i=0; lazzy_run && i<384; i++){
+			if (lazzy_tracker[i][0]){
+				u8 *line_start = (u8 *)(beagleusb->video.info->fix.smem_start + lazzy_tracker[i][1]);
+								
+				lazzy_tracker[i][0] = 0;
+
+				urb = dlfb_get_urb(beagleusb);
+				if(urb->transfer_buffer){
+					*((u8*)urb->transfer_buffer) = (char)DATA_VIDEO;			// this is video data
+					*((u8*)urb->transfer_buffer+1) = i;				// two byte page index
+					*((u8*)urb->transfer_buffer+1+1) = i >> 8;
+					memcpy(urb->transfer_buffer + 2 + 2, line_start, 4096);
+				}
+
+				dlfb_submit_urb(beagleusb, urb, 4100);
+
+			}
+		}
+		msleep(100);
+	}
+}
+#endif
 
 int rle(unsigned char* in, int pos, int len, unsigned char *out){
 	int outlen = 0;
@@ -893,6 +930,15 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 	}
 	if (dropFrameRatio != 0)
 		count = (count + 1) % dropFrameRatio;
+#elif LAZZY_MODE
+	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
+		if (cur->index < 384){
+			lazzy_tracker[cur->index][0] = 1;
+			lazzy_tracker[cur->index][1] = cur->index << PAGE_SHIFT;
+
+			//printk("%p\n", info->fix.smem_start);
+		}
+	}
 #else
 	if (count == 0){
 		list_for_each_entry(cur, &fbdefio->pagelist, lru) {
@@ -1789,6 +1835,16 @@ int dlfb_video_init(struct beagleusb *dev){
 
 	rle_out = kmalloc(4100 * 3, GFP_KERNEL);
 
+	#if LAZZY_MODE
+	printk("Init Thread\n");
+	lazzy_thread = kthread_create(lazzy_update, (void*)dev, "lazzy_thread");
+
+	if (lazzy_thread != NULL){
+		printk(KERN_INFO "Data Manager Thread Created\n");
+		wake_up_process(lazzy_thread);
+	}
+	#endif
+
 	return 0;
 }
 
@@ -1885,6 +1941,12 @@ void dlfb_usb_disconnect(struct beagleusb *dev)
 	int i;
 	
 	printk("dlfb_usb_disconnect called\n");
+
+	#if LAZZY_MODE
+	printk("Stop Lazzy_Update Thread\n");
+	lazzy_run = 0;
+	kthread_stop(lazzy_thread);
+	#endif
 
 	info = dev->video.info;
 

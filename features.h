@@ -1,3 +1,3 @@
-#define AUDIO 		1
-#define INPUT		0
-#define VIDEO		0
+#define AUDIO 		0
+#define INPUT		1
+#define VIDEO		1
