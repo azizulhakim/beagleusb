@@ -40,8 +40,8 @@ static struct snd_pcm_hardware snd_beagleaudio_digital_hw = {
   .rates =            SNDRV_PCM_RATE_44100,
   .rate_min =         44100,
   .rate_max =         44100,
-  .channels_min =     2,
-  .channels_max =     2,
+  .channels_min =     1,
+  .channels_max =     1,
   .buffer_bytes_max = 32768,
   .period_bytes_min = 4096,
   .period_bytes_max = 32768,
@@ -137,11 +137,9 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 	char *dataPointer;
 	size_t frame_bytes, chunk_length;
 
-	printk("PCM URB Received\n");
 
 	switch (urb->status) {
 	case 0:
-		printk("case SUCCESS\n");
 		break;
 	case -ETIMEDOUT:
 		printk("case ETIMEDOUT\n");
@@ -168,7 +166,7 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 	snd_pcm_stream_lock(substream);
 
 	pcm_buffer_size = snd_pcm_lib_buffer_bytes(substream);
-	frame_bytes = runtime->frame_bits >> 3;
+	frame_bytes = runtime->frame_bits >> 2;
 	chunk_length = PCM_DATA_SIZE / frame_bytes;
 	if (beagleusb->audio->snd_buffer_pos + chunk_length <= pcm_buffer_size){
 		memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer + PCM_HEADER_SIZE, runtime->dma_area + beagleusb->audio->snd_buffer_pos, PCM_DATA_SIZE);
@@ -207,8 +205,6 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 		snd_pcm_period_elapsed(substream);
 
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
-
-	printk("PCM URB Received Exit  %d\n", ret);
 }
 
 static int beagleaudio_audio_start(struct beagleusb* beagleusb)
