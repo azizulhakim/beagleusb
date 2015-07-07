@@ -25,6 +25,7 @@
 //#include "video.h"
 
 int dropFrameRatio = 1;
+int frameRateController = 100;
 
 struct beagleusb* beagle_allocate_device(void){
 	int i;

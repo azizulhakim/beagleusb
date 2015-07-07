@@ -117,18 +117,16 @@ void lazzy_update(void* data){
 				lazzy_tracker[i][0] = 0;
 
 				urb = dlfb_get_urb(beagleusb);
-				if(urb->transfer_buffer){
+				if(urb != NULL && urb->transfer_buffer){
 					*((u8*)urb->transfer_buffer) = (char)DATA_VIDEO;			// this is video data
 					*((u8*)urb->transfer_buffer+1) = i;				// two byte page index
 					*((u8*)urb->transfer_buffer+1+1) = i >> 8;
 					memcpy(urb->transfer_buffer + 2 + 2, line_start, 4096);
+					dlfb_submit_urb(beagleusb, urb, 4100);
 				}
-
-				dlfb_submit_urb(beagleusb, urb, 4100);
-
 			}
 		}
-		msleep(100);
+		msleep(frameRateController);
 	}
 }
 #endif

@@ -47,6 +47,7 @@
 #define NUM_URBS		8
 
 extern int	dropFrameRatio;
+extern int	frameRateController;
 
 struct pcm_urb {
 	struct urb				instance;

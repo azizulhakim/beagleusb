@@ -37,9 +37,9 @@ static struct snd_pcm_hardware snd_beagleaudio_digital_hw = {
            SNDRV_PCM_INFO_BLOCK_TRANSFER |
            SNDRV_PCM_INFO_MMAP_VALID),
   .formats =          SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U8,
-  .rates =            SNDRV_PCM_RATE_44100,
-  .rate_min =         44100,
-  .rate_max =         44100,
+  .rates =            SNDRV_PCM_RATE_16000,
+  .rate_min =         16000,
+  .rate_max =         16000,
   .channels_min =     1,
   .channels_max =     1,
   .buffer_bytes_max = 32768,
@@ -57,6 +57,8 @@ static int snd_beagleaudio_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	printk("PCM Open\n");
+
+	frameRateController *= 3;
 
 	beagleusb->audio->snd_substream = substream;
 	runtime->hw = snd_beagleaudio_digital_hw;
@@ -76,6 +78,8 @@ static int snd_beagleaudio_pcm_close(struct snd_pcm_substream *substream)
 		atomic_set(&beagleusb->audio->snd_stream, 0);
 		schedule_work(&beagleusb->snd_trigger);
 	}
+
+	frameRateController /= 3;
 
 	printk("PCM CLose exit\n");
 
