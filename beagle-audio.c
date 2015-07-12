@@ -50,6 +50,7 @@ static struct snd_pcm_hardware snd_beagleaudio_digital_hw = {
 };
 
 //int counter = 0;
+int audio_running;
 
 static int snd_beagleaudio_pcm_open(struct snd_pcm_substream *substream)
 {
@@ -141,7 +142,6 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 	char *dataPointer;
 	size_t frame_bytes, chunk_length;
 
-
 	switch (urb->status) {
 	case 0:
 		break;
@@ -164,51 +164,53 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 		printk("unknown audio urb status %i\n", urb->status);
 	}
 
-	if (!atomic_read(&beagleusb->audio->snd_stream))
-		return;
+	if (audio_running){
+		if (!atomic_read(&beagleusb->audio->snd_stream))
+			return;
 
-	snd_pcm_stream_lock(substream);
+		snd_pcm_stream_lock(substream);
 
-	pcm_buffer_size = snd_pcm_lib_buffer_bytes(substream);
-	frame_bytes = runtime->frame_bits >> 2;
-	chunk_length = PCM_DATA_SIZE / frame_bytes;
-	if (beagleusb->audio->snd_buffer_pos + chunk_length <= pcm_buffer_size){
-		memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer + PCM_HEADER_SIZE, runtime->dma_area + beagleusb->audio->snd_buffer_pos, PCM_DATA_SIZE);
+		pcm_buffer_size = snd_pcm_lib_buffer_bytes(substream);
+		frame_bytes = runtime->frame_bits >> 2;
+		chunk_length = PCM_DATA_SIZE / frame_bytes;
+		if (beagleusb->audio->snd_buffer_pos + chunk_length <= pcm_buffer_size){
+			memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer + PCM_HEADER_SIZE, runtime->dma_area + beagleusb->audio->snd_buffer_pos, PCM_DATA_SIZE);
+		}
+		else{
+			len = pcm_buffer_size - beagleusb->audio->snd_buffer_pos;
+
+			memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer + PCM_HEADER_SIZE, runtime->dma_area + beagleusb->audio->snd_buffer_pos, len);
+			memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer + PCM_HEADER_SIZE + len, runtime->dma_area, PCM_DATA_SIZE - len);	
+		}
+		dataPointer = (char*)(beagleusb->audio->snd_bulk_urb->transfer_buffer);		// this is audio packet
+		dataPointer[0] = (char)DATA_AUDIO;
+		//dataPointer[1] = 0;
+		//dataPointer[2] = 0;
+		//dataPointer[3] = 0;
+
+		#if BUFFERING
+		insert(beagleusb->audio->snd_bulk_urb->transfer_buffer);
+		#endif
+
+		period_elapsed = 0;
+		beagleusb->audio->snd_buffer_pos += chunk_length;
+		if (beagleusb->audio->snd_buffer_pos >= pcm_buffer_size)
+			beagleusb->audio->snd_buffer_pos -= pcm_buffer_size;
+
+		beagleusb->audio->snd_period_pos += chunk_length;
+		if (beagleusb->audio->snd_period_pos >= runtime->period_size) {
+			beagleusb->audio->snd_period_pos %= runtime->period_size;
+			period_elapsed = 1;
+		}
+
+
+		snd_pcm_stream_unlock(substream);
+
+		if (period_elapsed)
+			snd_pcm_period_elapsed(substream);
+
+		ret = usb_submit_urb(urb, GFP_ATOMIC);
 	}
-	else{
-		len = pcm_buffer_size - beagleusb->audio->snd_buffer_pos;
-
-		memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer + PCM_HEADER_SIZE, runtime->dma_area + beagleusb->audio->snd_buffer_pos, len);
-		memcpy(beagleusb->audio->snd_bulk_urb->transfer_buffer + PCM_HEADER_SIZE + len, runtime->dma_area, PCM_DATA_SIZE - len);	
-	}
-	dataPointer = (char*)(beagleusb->audio->snd_bulk_urb->transfer_buffer);		// this is audio packet
-	dataPointer[0] = (char)DATA_AUDIO;
-	//dataPointer[1] = 0;
-	//dataPointer[2] = 0;
-	//dataPointer[3] = 0;
-
-	#if BUFFERING
-	insert(beagleusb->audio->snd_bulk_urb->transfer_buffer);
-	#endif
-
-	period_elapsed = 0;
-	beagleusb->audio->snd_buffer_pos += chunk_length;
-	if (beagleusb->audio->snd_buffer_pos >= pcm_buffer_size)
-		beagleusb->audio->snd_buffer_pos -= pcm_buffer_size;
-
-	beagleusb->audio->snd_period_pos += chunk_length;
-	if (beagleusb->audio->snd_period_pos >= runtime->period_size) {
-		beagleusb->audio->snd_period_pos %= runtime->period_size;
-		period_elapsed = 1;
-	}
-
-
-	snd_pcm_stream_unlock(substream);
-
-	if (period_elapsed)
-		snd_pcm_period_elapsed(substream);
-
-	ret = usb_submit_urb(urb, GFP_ATOMIC);
 }
 
 static int beagleaudio_audio_start(struct beagleusb* beagleusb)
@@ -218,22 +220,7 @@ static int beagleaudio_audio_start(struct beagleusb* beagleusb)
 
 	printk("PCM Audio Start\n");
 
-	beagleusb->audio->snd_bulk_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (beagleusb->audio->snd_bulk_urb == NULL)
-		goto err_alloc_urb;
-
-	pipe = usb_sndbulkpipe(beagleusb->usbdev, beagleusb->bulk_out_endpointAddr); //beagleusb->audio->bulk_out_pipe;
-
-	beagleusb->audio->snd_bulk_urb->transfer_buffer = kzalloc(
-		DATA_PACKET_SIZE, GFP_KERNEL);
-
-	if (beagleusb->audio->snd_bulk_urb->transfer_buffer == NULL)
-		goto err_transfer_buffer;
-
-	usb_fill_bulk_urb(beagleusb->audio->snd_bulk_urb, beagleusb->usbdev, pipe,
-		beagleusb->audio->snd_bulk_urb->transfer_buffer, DATA_PACKET_SIZE,
-		beagleaudio_audio_urb_received, beagleusb);
-
+	audio_running = 1;
 	ret = usb_clear_halt(beagleusb->usbdev, pipe);
 	ret = usb_submit_urb(beagleusb->audio->snd_bulk_urb, GFP_ATOMIC);
 
@@ -255,13 +242,14 @@ static int beagleaudio_audio_stop(struct beagleusb* beagleusb)
 
 	printk("PCM Stop\n");
 
-	if (beagleusb->audio->snd_bulk_urb) {
+	audio_running = 0;
+	/*if (beagleusb->audio->snd_bulk_urb) {
 		usb_kill_urb(beagleusb->audio->snd_bulk_urb);
 		kfree(beagleusb->audio->snd_bulk_urb->transfer_buffer);
 		printk("kill urb = %p\n", beagleusb->audio->snd_bulk_urb);
 		usb_free_urb(beagleusb->audio->snd_bulk_urb);
 		beagleusb->audio->snd_bulk_urb = NULL;
-	}
+	}*/
 
 	printk("PCM Stop Exit\n");
 
@@ -355,6 +343,7 @@ int beagleaudio_audio_init(struct beagleusb *beagleusb)
 	int rv;
 	struct snd_card *card;
 	struct snd_pcm *pcm;
+	unsigned int pipe;
 
 	printk("Audio Init\n");
 
@@ -400,9 +389,30 @@ int beagleaudio_audio_init(struct beagleusb *beagleusb)
 	if (rv)
 		goto err;
 
+	beagleusb->audio->snd_bulk_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (beagleusb->audio->snd_bulk_urb == NULL)
+		goto err;
+
+	pipe = usb_sndbulkpipe(beagleusb->usbdev, beagleusb->bulk_out_endpointAddr); //beagleusb->audio->bulk_out_pipe;
+
+	beagleusb->audio->snd_bulk_urb->transfer_buffer = kzalloc(
+		DATA_PACKET_SIZE, GFP_KERNEL);
+
+	if (beagleusb->audio->snd_bulk_urb->transfer_buffer == NULL)
+		goto err_transfer_buffer;
+
+	usb_fill_bulk_urb(beagleusb->audio->snd_bulk_urb, beagleusb->usbdev, pipe,
+		beagleusb->audio->snd_bulk_urb->transfer_buffer, DATA_PACKET_SIZE,
+		beagleaudio_audio_urb_received, beagleusb);
+
 	printk("BeagleAudio Init Exit\n");
 
 	return 0;
+
+err_transfer_buffer:
+	printk("kill urb = %p\n", beagleusb->audio->snd_bulk_urb);
+	usb_free_urb(beagleusb->audio->snd_bulk_urb);
+	beagleusb->audio->snd_bulk_urb = NULL;
 
 err:
 	beagleusb->audio->snd = NULL;
