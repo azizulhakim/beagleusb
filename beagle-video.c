@@ -35,7 +35,7 @@
 #include "datamanager.h"
 #include "ringbuffer.h"
 #include "beagleusb.h"
-#include "vid.h"
+#include "beagle-video.h"
 
 // A temp var just to see how many times hline_render is being called.
 int vline_count = 0;

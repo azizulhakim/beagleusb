@@ -22,7 +22,7 @@
 
 #include "features.h"
 #include "beagle-audio.h"
-#include "vid.h"
+#include "beagle-video.h"
 
 
 #define BUFFERING	0

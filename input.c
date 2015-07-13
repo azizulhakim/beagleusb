@@ -147,7 +147,6 @@ void usb_inputurb_complete(struct urb *urb)
 	}
 
 	filterId = beagleusb->input->new[0];
-	printk("filterId = %d\n", filterId);
 
 	if (filterId != CONTROLMESSAGE){
 		start_metakey(input);
