@@ -61,7 +61,7 @@ int SendIdentificationInfo(struct usb_device *usbdev, int id_index, char *id_inf
 				VAL_AOA_REQ,
 				id_index,
 				utf8((char*)(id_info)),
-				sizeof(id_info) + 1,
+				strlen(utf8((char*)(id_info))),
 				HZ*5);
 
 	return ret;

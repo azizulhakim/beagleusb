@@ -29,9 +29,7 @@
 #include "input.h"
 
 int handle_mouse(struct beagleinput* mouse){
-	int i = 2;
 	int x,y;
-	int control = 0;
 	signed char *data = mouse->new;
 	int	btn_left = data[MOUSE_BTN_INDEX] & (char)MOUSE_BTN_LEFT;
 	int btn_right = data[MOUSE_BTN_INDEX] & (char)MOUSE_BTN_RIGHT;
@@ -130,7 +128,6 @@ void usb_inputurb_complete(struct urb *urb)
 {
 	struct beagleusb* beagleusb = urb->context;
 	struct beagleinput* input = beagleusb->input;
-	signed char *data = input->new;
 	int filterId;
 	int i;
 

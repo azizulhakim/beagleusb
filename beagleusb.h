@@ -28,7 +28,6 @@
 #define BUFFERING	0
 #define VIDEO_URB	0
 #define RLE			0
-#define DROPFRAME	1
 #define LAZZY_MODE	1
 #define VAR_RES		0				// Allow Variable Resolution @compile time
 									// Don't set it in audio enabled mode

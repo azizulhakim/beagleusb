@@ -866,15 +866,6 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 
 	start_cycles = get_cycles();
 
-/*	#if DROPFRAME
-	int page_count = 0;
-	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
-		page_count++;
-	}
-	printk("page_count = %d\n", page_count);
-	drop_ratio = page_count / 30;
-	if (drop_ratio == 0) drop_ratio = 1;
-*/
 
 	/* walk the written page list and render each to device */
 #if VAR_RES
@@ -2068,7 +2059,6 @@ static int dlfb_alloc_urb_list(struct beagleusb *dev, int count, size_t size)
 	int i = 0;
 	struct urb *urb;
 	struct urb_node *unode;
-	char *buf;
 	
 	printk("dlfb_alloc_urb_list called\n");
 
