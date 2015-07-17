@@ -1,6 +1,7 @@
 /*	Beaglebone USB Driver for Android Device Using AOA v2.0 Protocol
  *
  *   Copyright (C) 2014  Azizul Hakim
+ *   azizulfahim2002@gmail.com
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by

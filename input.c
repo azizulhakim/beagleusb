@@ -1,6 +1,7 @@
 /*	 Beaglebone USB Driver for Android Device Using AOA v2.0 Protocol
  *
  *   Copyright (C) 2014  Azizul Hakim
+ *   azizulfahim2002@gmail.com
  *
  *   Special thanks to Vojtech Pavlik, the writer of linux USB Keyboard
  *   and mouse driver whose work helped me to accomodate support for beaglebone 
