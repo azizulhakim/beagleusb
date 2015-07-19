@@ -19,7 +19,10 @@
  #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  #
 
-if [ "$1" = "help" ]; then
+if [ "$1" = "" ]; then
+	printf "Too few arguments.\nbuild.sh [ARGUMENT]\nType \"./build.sh help\" for more about ARGUMENT field\n"
+
+elif [ "$1" = "help" ]; then
 	echo "####################################################################"
 	echo "#  make - builds the binary                                        #"
 	echo "#  clean - clean up the built binaries                             #"

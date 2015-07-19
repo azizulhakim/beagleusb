@@ -9,4 +9,4 @@ https://github.com/azizulhakim/beagledroid-usbaudio
 https://github.com/azizulhakim/beagledroid-kbd
 https://github.com/azizulhakim/bard-linux
 
-Build instructions are added inside "docs" folder
+Test instructions are added inside "docs/How to Test.html"
