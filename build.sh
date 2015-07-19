@@ -67,6 +67,10 @@ elif [ "$1" = "clean" ]; then
 	make clean
 
 elif [ "$1" = "install" ]; then
+	if [ ! -e "$HOME/.asoundrc" ]; then
+		printf "############### create asoundrc file ################\n"
+		cp res/asoundrc $HOME/.asoundrc
+	fi
 	insmod adk/adk.ko
 	insmod beagle.ko
 
