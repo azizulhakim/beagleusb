@@ -96,8 +96,6 @@ static int dlfb_submit_urb(struct beagleusb *dev, struct urb * urb, size_t len);
 static int dlfb_alloc_urb_list(struct beagleusb *dev, int count, size_t size);
 static void dlfb_free_urb_list(struct beagleusb *dev);
 
-unsigned char *rle_out;
-
 #if LAZZY_MODE
 unsigned int lazzy_tracker[384][2];
 int lazzy_run = 1;
@@ -488,12 +486,7 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	int transferred = 0;
 	int retval;
 	struct urb* urb;
-	struct urb* urb2;
 	u16 page_index = byte_offset/4096;
-	long int rled_len = 0;
-	u8 test[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-	int size;
-	int size3;
 	int i;
 //	u32 dev_addr = dev->video.base16 + byte_offset;
 	
@@ -1662,8 +1655,6 @@ int dlfb_video_init(struct beagleusb *dev){
 		pr_err("dlfb_alloc_urb_list failed\n");
 		return -ENOMEM;
 	}
-
-	rle_out = kmalloc(4100 * 3, GFP_KERNEL);
 
 	#if LAZZY_MODE
 	printk("Init Thread\n");
