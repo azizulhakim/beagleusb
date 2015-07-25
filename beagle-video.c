@@ -178,12 +178,6 @@ int rle(unsigned char* in, int pos, int len, unsigned char *out){
 
 static void beagleusb_video_urb_received(struct urb *urb)
 {
-	#if BUFFERING
-	int ret = 0;
-	struct beagleusb *beagleusb = urb->context;
-	unsigned char *data;
-	#endif
-
 //	printk("Video URB Received\n");
 
 	switch (urb->status) {
@@ -208,18 +202,6 @@ static void beagleusb_video_urb_received(struct urb *urb)
 	default:
 		printk("unknown audio urb status %i\n", urb->status);
 	}
-
-	#if BUFFERING
-	data = get();
-	if (data == NULL){
-		memset(beagleusb->video.videourb->transfer_buffer, 0, PCM_DATA_SIZE);
-	}
-	else{
-		memcpy(beagleusb->video.videourb->transfer_buffer, data, PCM_DATA_SIZE);
-		kfree(data);
-	}
-	ret = usb_submit_urb(urb, GFP_ATOMIC);
-	#endif
 
 	//add_urb(urb, FREE);
 	//delete_urb(urb, OCCUPIED);
@@ -555,35 +537,6 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 //	u32 dev_addr = dev->video.base16 + byte_offset;
 	
 	#if BUFFERING	// insert data in ringbuffer
-	u8 *data;
-
-	data = kmalloc((2 + 2 + byte_width), GFP_KERNEL);	// 4100 byte data, 4 byte header, 4096 byte payload
-
-	// For page y-index encoding
-	
-	//data = kmalloc((2 + 2 + byte_width), GFP_KERNEL);	// 4100 byte data, 4 byte header, 4096 byte payload
-	
-	if(data){
-		// Save page index
-		*(data) = (char)DATA_VIDEO;			// this is video data
-		*(data+1) = page_index;				// two byte page index
-		*(data+1+1) = page_index >> 8;
-	}
-	
-	line_start = (u8 *) (front + byte_offset);
-	next_pixel = line_start;
-	line_end = next_pixel + byte_width;
-	
-	// Copy current page
-	memcpy(data + 2 + 2, line_start, byte_width);
-	
-	vline_count++;
-	
-	// identical pixels value to zero.
-	ident_ptr += 0;	
-	insert(data);	
-
-//	kfree(data);
 
 	#else
 	line_start = (u8 *) (front + byte_offset);
