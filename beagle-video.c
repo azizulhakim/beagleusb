@@ -1005,10 +1005,6 @@ dlfb_ops_setcolreg(unsigned regno, unsigned red, unsigned green,
 static int dlfb_ops_open(struct fb_info *info, int user)
 {
 	struct beagleusb *dev = info->par;
-	#if VIDEO_URB
-	int pipe = 0;
-	int ret = 0;
-	#endif
 	
 	printk("dlfb_ops_open called\n");
 
@@ -1049,28 +1045,6 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 	pr_notice("open /dev/fb%d user=%d fb_info=%p count=%d\n",
 	    info->node, user, info, dev->video.fb_count);
 
-	#if VIDEO_URB
-	dev->video.videourb = usb_alloc_urb(0, GFP_KERNEL);
-	if (dev->video.videourb == NULL)
-		return -ENODEV;
-
-	pipe = usb_sndbulkpipe(dev->usbdev, dev->bulk_out_endpointAddr);
-
-	dev->video.videourb->transfer_buffer = kzalloc(
-		DATA_PACKET_SIZE, GFP_KERNEL);
-
-	if (dev->video.videourb->transfer_buffer == NULL)
-		return -ENODEV;
-
-	usb_fill_bulk_urb(dev->video.videourb, dev->usbdev, pipe,
-		dev->video.videourb->transfer_buffer, DATA_PACKET_SIZE,
-		beagleusb_video_urb_received, dev);
-
-	ret = usb_clear_halt(dev->usbdev, usb_sndbulkpipe(dev->usbdev, dev->bulk_out_endpointAddr));
-	ret = usb_submit_urb(dev->video.videourb, GFP_ATOMIC);
-	printk("URB Submitted %d\n", ret);
-	#endif
-
 	return 0;
 }
 
@@ -1110,15 +1084,6 @@ static void dlfb_free_framebuffer(struct beagleusb *dev)
 	struct fb_info *info = dev->video.info;
 	
 	printk("dlfb_free_framebuffer called\n");
-
-        #if VIDEO_URB
-        if (dev->video.videourb) {
-                usb_kill_urb(dev->video.videourb);
-                kfree(dev->video.videourb->transfer_buffer);
-                usb_free_urb(dev->video.videourb);
-                dev->video.videourb = NULL;
-        }
-        #endif
 
 
 	if (info) {
