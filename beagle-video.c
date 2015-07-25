@@ -131,45 +131,6 @@ void lazzy_update(void* data){
 }
 #endif
 
-int rle(unsigned char* in, int pos, int len, unsigned char *out){
-	int outlen = 0;
-	int i = 0, j = 0;
-	int outi = 0;
-	int count = 0;
-
-	if (len % 2 != 0){
-		printk("Length should be multiple of 2\n");
-		return 0;
-	}
-
-	i = pos;
-	while(i < len){
-		j = i;
-		count = 0;
-		while (j + 1 < len && in[i] == in[j] && in[i+1] == in[j+1]){
-			count++;
-			j+=2;
-		}
-
-		while (count > 255){
-			out[outi++] = in[i];
-			out[outi++] = in[i+1];
-			out[outi++] = 255;
-			count -= 255;
-			i += 2*255;
-		}
-		out[outi++] = in[i];
-		out[outi++] = in[i+1];
-		out[outi++] = count;
-		i += 2*count;
-	}
-	//printk("i = %d, outi = %d, j = %d\n", i, outi, j);
-	outlen = outi;
-	
-	return outlen;
-}
-
-
 /* Function added by me to fix make errors */
 /*static void err (char *msg){
 	printk(msg);
@@ -552,20 +513,6 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 	
 	#if RLE
 
-	rled_len = rle((unsigned char*)line_start, 0, 4096, rle_out);
-	*((u8*)urb->transfer_buffer+3) = 1;								// RLE used
-	*((u8*)urb->transfer_buffer+4) = rled_len;						// Lenght of RLE data
-	*((u8*)urb->transfer_buffer+5) = rled_len >> 8;
-	if (rled_len < 4094){
-		memcpy(urb->transfer_buffer + 6, rle_out, rled_len);
-		//printk("%p %p %p %p %p %p\n", *((u8*)urb->transfer_buffer + 0), *((u8*)urb->transfer_buffer + 1), *((u8*)urb->transfer_buffer + 2), 
-			//						*((u8*)urb->transfer_buffer + 3), *((u8*)urb->transfer_buffer + 4), *((u8*)urb->transfer_buffer + 5));
-
-	}
-	else{
-		printk("rled_len = %d\n", rled_len);
-	}
-
 	#else
 
 	memcpy(urb->transfer_buffer + 2 + 2, line_start, byte_width);
@@ -588,30 +535,6 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 		usb_submit_urb(urb, GFP_ATOMIC);*/
 
 		#if RLE
-		test[0] = (u8)((rled_len + PCM_HEADER_SIZE) & 0x000000ff);			// this is video data
-		test[1] = (u8)(((rled_len + PCM_HEADER_SIZE) >> 8) & 0xff);				// two byte page index
-		test[2] = (u8)(((rled_len + PCM_HEADER_SIZE) >> 16) & 0xff);
-		test[3] = (u8)(((rled_len + PCM_HEADER_SIZE) >> 24) & 0xff);
-
-		size = (long int)test[0] + ((long int)test[1] << 8) + ((long int)test[2] << 16) + ((long int)test[3] << 24);
-
-
-		/**((u8*)urb->transfer_buffer) = (char)DATA_VIDEO;
-		*((u8*)urb->transfer_buffer+1) = 0;
-		*((u8*)urb->transfer_buffer+1+1) = size;		
-		*((u8*)urb->transfer_buffer+1+1+1) = size >> 8;*/
-
-		size = rled_len;
-		dlfb_submit_urb(dev, urb, 512);
-
-		if (size > 506 && (size - 506 < 512 || size - 506 > 4096)){
-			urb2 = dlfb_get_urb(dev);
-			dlfb_submit_urb(dev, urb2, 512);
-		}
-		else if (size > 506){
-			urb2 = dlfb_get_urb(dev);
-			dlfb_submit_urb(dev, urb2, size - 506);
-		}
 		#else
 		dlfb_submit_urb(dev, urb, DATA_PACKET_SIZE);
 		#endif
