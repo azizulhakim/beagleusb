@@ -135,42 +135,6 @@ void lazzy_update(void* data){
 }*/
 
 
-static void beagleusb_video_urb_received(struct urb *urb)
-{
-//	printk("Video URB Received\n");
-
-	switch (urb->status) {
-	case 0:
-		printk("case SUCCESS\n");
-		break;
-	case -ETIMEDOUT:
-		printk("case ETIMEDOUT\n");
-		return;
-	case -ENOENT:
-		printk("case ENOENT\n");
-		return;
-	case -EPROTO:
-		printk("case EPROTO\n");
-		return;
-	case -ECONNRESET:
-		printk("case ECONNRESET\n");
-		return;
-	case -ESHUTDOWN:
-		printk("case ESHUTDOWN\n");
-		return;
-	default:
-		printk("unknown audio urb status %i\n", urb->status);
-	}
-
-	//add_urb(urb, FREE);
-	//delete_urb(urb, OCCUPIED);
-	kfree(urb->transfer_buffer);
-	kfree(urb);
-
-//	printk("Video URB Received Exit\n");
-}
-
-
 /*
  * All DisplayLink bulk operations start with 0xAF, followed by specific code
  * All operations are written to buffers which then later get sent to device
@@ -379,9 +343,6 @@ static char *dlfb_set_vid_cmds(char *wrptr, struct fb_var_screeninfo *var)
 static int dlfb_set_video_mode(struct beagleusb *dev,
 				struct fb_var_screeninfo *var)
 {
-	#if RLE
-		return 0;
-	#else
 	char *buf;
 	char *wrptr;
 	int retval = 0;
@@ -434,7 +395,6 @@ static int dlfb_set_video_mode(struct beagleusb *dev,
 	dev->video.blank_mode = FB_BLANK_UNBLANK;
 
 	return retval;
-	#endif
 }
 
 static int dlfb_ops_mmap(struct fb_info *info, struct vm_area_struct *vma)
@@ -482,17 +442,10 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 			      u32 byte_offset, u32 byte_width,
 			      int *ident_ptr, int *sent_ptr)
 {				  
-	const u8 *line_start, *line_end, *next_pixel;
-	int transferred = 0;
-	int retval;
+	const u8 *line_start;
 	struct urb* urb;
 	u16 page_index = byte_offset/4096;
-	int i;
-//	u32 dev_addr = dev->video.base16 + byte_offset;
-	
-	#if BUFFERING	// insert data in ringbuffer
 
-	#else
 	line_start = (u8 *) (front + byte_offset);
 
 
@@ -503,37 +456,15 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 		*((u8*)urb->transfer_buffer+1) = page_index;				// two byte page index
 		*((u8*)urb->transfer_buffer+1+1) = page_index >> 8;
 	}
-	
-	#if RLE
-
-	#else
 
 	memcpy(urb->transfer_buffer + 2 + 2, line_start, byte_width);
-
-	#endif
 
 	vline_count++;
 	
 	// identical pixels value to zero.
 	ident_ptr += 0;
 
-
-	//if (urb != NULL){
-		//memcpy(urb->transfer_buffer, data, DATA_PACKET_SIZE);
-
-		//add_urb(urb, OCCUPIED);
-		/*usb_fill_bulk_urb(urb, dev->usbdev, usb_sndbulkpipe(dev->usbdev, dev->bulk_out_endpointAddr),
-						  urb->transfer_buffer, DATA_PACKET_SIZE,
-						  beagleusb_video_urb_received, dev);
-		usb_submit_urb(urb, GFP_ATOMIC);*/
-
-		#if RLE
-		#else
-		dlfb_submit_urb(dev, urb, DATA_PACKET_SIZE);
-		#endif
-	//}
-
-	#endif
+	dlfb_submit_urb(dev, urb, DATA_PACKET_SIZE);
 
 	return 0;
 }
@@ -718,14 +649,7 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 	struct page *cur;
 	struct fb_deferred_io *fbdefio = info->fbdefio;
 	struct beagleusb *dev = info->par;
-	struct urb *urb;
-	char *cmd;
-	cycles_t start_cycles, end_cycles;
-	int bytes_sent = 0;
-	int bytes_identical = 0;
-	int bytes_rendered = 0;
-	
-	//printk("A deferred io call occured\n");
+	cycles_t start_cycles;
 
 	if (!fb_defio)
 		return;
@@ -738,6 +662,12 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 
 	/* walk the written page list and render each to device */
 #if VAR_RES
+	cycles_t end_cycles;
+	int bytes_sent = 0;
+	int bytes_identical = 0;
+	int bytes_rendered = 0;
+	struct urb *urb;
+
 	if (count == 0){
 		int dpy_count = 0;
 		int unsubmitted_urb = 0;
@@ -793,8 +723,6 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 		if (cur->index < 384){
 			lazzy_tracker[cur->index][0] = 1;
 			lazzy_tracker[cur->index][1] = cur->index << PAGE_SHIFT;
-
-			//printk("%p\n", info->fix.smem_start);
 		}
 	}
 #else
@@ -811,18 +739,16 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 	if (dropFrameRatio != 0)
 		count = (count + 1) % dropFrameRatio;
 
-//	printk("count = %d\n", count);
-//	#endif
-#endif
+	error:
+		atomic_add(bytes_sent, &dev->video.bytes_sent);
+		atomic_add(bytes_identical, &dev->video.bytes_identical);
+		atomic_add(bytes_rendered, &dev->video.bytes_rendered);
+		end_cycles = get_cycles();
+		atomic_add(((unsigned int) ((end_cycles - start_cycles)
+				>> 10)), /* Kcycles */
+			   &dev->video.cpu_kcycles_used);
 
-error:
-	atomic_add(bytes_sent, &dev->video.bytes_sent);
-	atomic_add(bytes_identical, &dev->video.bytes_identical);
-	atomic_add(bytes_rendered, &dev->video.bytes_rendered);
-	end_cycles = get_cycles();
-	atomic_add(((unsigned int) ((end_cycles - start_cycles)
-		    >> 10)), /* Kcycles */
-		   &dev->video.cpu_kcycles_used);
+#endif
 }
 
 #endif
@@ -1157,32 +1083,12 @@ static int dlfb_ops_set_par(struct fb_info *info)
 	return result;
 }
 
-/* To fonzi the jukebox (e.g. make blanking changes take effect) */
-static char *dlfb_dummy_render(char *buf)
-{
-	
-	printk("dlfb_dummy_render called\n");	
-	
-	*buf++ = 0xAF;
-	*buf++ = 0x6A; /* copy */
-	*buf++ = 0x00; /* from address*/
-	*buf++ = 0x00;
-	*buf++ = 0x00;
-	*buf++ = 0x01; /* one pixel */
-	*buf++ = 0x00; /* to address */
-	*buf++ = 0x00;
-	*buf++ = 0x00;
-	return buf;
-}
-
 /*
  * In order to come back from full DPMS off, we need to set the mode again
  */
 static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 {
 	struct beagleusb *dev = info->par;
-	char *bufptr;
-	struct urb *urb;
 	
 	printk("dlfb_ops_blank called\n");
 
@@ -1196,23 +1102,6 @@ static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 		dlfb_set_video_mode(dev, &info->var);
 	}
 
-/*	urb = dlfb_get_urb(dev);
-	if (!urb)
-		return 0;
-
-	bufptr = (char *) urb->transfer_buffer;
-	bufptr = dlfb_vidreg_lock(bufptr);
-	bufptr = dlfb_blanking(bufptr, blank_mode);
-	bufptr = dlfb_vidreg_unlock(bufptr);
-
-	/* seems like a render op is needed to have blank change take effect
-	bufptr = dlfb_dummy_render(bufptr);
-
-	dlfb_submit_urb(dev, urb, bufptr -
-			(char *) urb->transfer_buffer);
-
-	dev->video.blank_mode = blank_mode;
-*/
 	return 0;
 }
 

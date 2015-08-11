@@ -92,7 +92,6 @@ static int snd_beagleaudio_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *hw_params)
 {
 	int rv;
-	struct beagleusb *chip = snd_pcm_substream_chip(substream);
 
 	printk("PCM HW Params\n");
 
@@ -138,8 +137,7 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int period_elapsed;
 	unsigned int pcm_buffer_size;
-	unsigned int len, ret, i;
-	char k;
+	unsigned int len, ret;
 	char *dataPointer;
 	size_t frame_bytes, chunk_length;
 
@@ -185,13 +183,7 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 		}
 		dataPointer = (char*)(beagleusb->audio->snd_bulk_urb->transfer_buffer);		// this is audio packet
 		dataPointer[0] = (char)DATA_AUDIO;
-		//dataPointer[1] = 0;
-		//dataPointer[2] = 0;
-		//dataPointer[3] = 0;
 
-		#if BUFFERING
-		insert(beagleusb->audio->snd_bulk_urb->transfer_buffer);
-		#endif
 
 		period_elapsed = 0;
 		beagleusb->audio->snd_buffer_pos += chunk_length;
