@@ -662,21 +662,15 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 
 	/* walk the written page list and render each to device */
 #if VAR_RES
-	cycles_t end_cycles;
-	int bytes_sent = 0;
-	int bytes_identical = 0;
-	int bytes_rendered = 0;
-	struct urb *urb;
+	struct urb *urb = NULL;
 
 	if (count == 0){
-		int dpy_count = 0;
 		int unsubmitted_urb = 0;
-		u32 frame_size = PCM_HEADER_SIZE + 2 * XRES * BPP;
 		u32 byte_offset = 0;
 		u32 start_offset = 0;
 		u32 end_offset = 0;
-		char *transfer_buffer;
-		u32 remaining_buffer;
+		char *transfer_buffer = NULL;
+		u32 remaining_buffer = 0;
 
 		list_for_each_entry(cur, &fbdefio->pagelist, lru) {
 			start_offset = cur->index << PAGE_SHIFT;

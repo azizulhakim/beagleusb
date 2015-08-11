@@ -221,10 +221,6 @@ static int beagleusb_probe(struct usb_interface *intf,
 		if (beagleusb == NULL)
 			return -ENOMEM;
 
-		#if BUFFERING
-		ringbuffer_init();
-		//manager_init(beagleusb);
-		#endif
 		manager_init(beagleusb);
 
 		beagleusb->dev = dev;

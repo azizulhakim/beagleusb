@@ -72,7 +72,6 @@ int handle_keyboard(struct beagleinput *kbd){
 	int keyIndex;
 
 	keyIndex = kbd->new[KEY_INDEX];
-	printk("keyIndex = %d\n", keyIndex);
 
 	input_report_key(kbd->inputdev, usb_kbd_keycode[keyIndex], 0x01);
 	input_report_key(kbd->inputdev, usb_kbd_keycode[keyIndex], 0x00);

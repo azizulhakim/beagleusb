@@ -220,14 +220,6 @@ static int beagleaudio_audio_start(struct beagleusb* beagleusb)
 	printk("PCM Audio Start Exit %d\n", ret);
 
 	return 0;
-
-err_transfer_buffer:
-	printk("kill urb = %p\n", beagleusb->audio->snd_bulk_urb);
-	usb_free_urb(beagleusb->audio->snd_bulk_urb);
-	beagleusb->audio->snd_bulk_urb = NULL;
-
-err_alloc_urb:
-	return -ENOMEM;
 }
 
 static int beagleaudio_audio_stop(struct beagleusb* beagleusb)
