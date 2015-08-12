@@ -58,14 +58,10 @@ static int snd_beagleaudio_pcm_open(struct snd_pcm_substream *substream)
 	struct beagleusb *beagleusb = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	printk("PCM Open\n");
-
 	frameRateController *= 3;
 
 	beagleusb->audio->snd_substream = substream;
 	runtime->hw = snd_beagleaudio_digital_hw;
-
-	printk("PCM Open Exit\n");
 
 	return 0;
 }
@@ -74,16 +70,12 @@ static int snd_beagleaudio_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct beagleusb *beagleusb = snd_pcm_substream_chip(substream);
 
-	printk("PCM Close\n");
-
 	if (atomic_read(&beagleusb->audio->snd_stream)) {
 		atomic_set(&beagleusb->audio->snd_stream, 0);
 		schedule_work(&beagleusb->snd_trigger);
 	}
 
 	frameRateController /= 3;
-
-	printk("PCM CLose exit\n");
 
 	return 0;
 }
@@ -93,8 +85,6 @@ static int snd_beagleaudio_hw_params(struct snd_pcm_substream *substream,
 {
 	int rv;
 
-	printk("PCM HW Params\n");
-
 	rv = snd_pcm_lib_malloc_pages(substream,
 		params_buffer_bytes(hw_params));
 
@@ -103,16 +93,13 @@ static int snd_beagleaudio_hw_params(struct snd_pcm_substream *substream,
 		return rv;
 	}
 
-	printk("PCM HW Params exit\n");
-
 	return 0;
 }
 
 static int snd_beagleaudio_hw_free(struct snd_pcm_substream *substream)
 {
-	printk("PCM HW Free\n");
 	snd_pcm_lib_free_pages(substream);
-	printk("PCM HW Free Exit\n");
+
 	return 0;
 }
 
@@ -120,12 +107,8 @@ static int snd_beagleaudio_prepare(struct snd_pcm_substream *substream)
 {
 	struct beagleusb *beagleusb = snd_pcm_substream_chip(substream);
 
-	printk("PCM Prepare\n");
-
 	beagleusb->audio->snd_buffer_pos = 0;
 	beagleusb->audio->snd_period_pos = 0;
-
-	printk("PCM Prepare Exit\n");
 
 	return 0;
 }
@@ -208,25 +191,18 @@ static void beagleaudio_audio_urb_received(struct urb *urb)
 
 static int beagleaudio_audio_start(struct beagleusb* beagleusb)
 {
-	unsigned int pipe;
+	unsigned int pipe = usb_sndbulkpipe(beagleusb->usbdev, beagleusb->bulk_out_endpointAddr);
 	int ret;
-
-	printk("PCM Audio Start\n");
 
 	audio_running = 1;
 	ret = usb_clear_halt(beagleusb->usbdev, pipe);
 	ret = usb_submit_urb(beagleusb->audio->snd_bulk_urb, GFP_ATOMIC);
-
-	printk("PCM Audio Start Exit %d\n", ret);
 
 	return 0;
 }
 
 static int beagleaudio_audio_stop(struct beagleusb* beagleusb)
 {
-
-	printk("PCM Stop\n");
-
 	audio_running = 0;
 	/*if (beagleusb->audio->snd_bulk_urb) {
 		usb_kill_urb(beagleusb->audio->snd_bulk_urb);
@@ -236,52 +212,35 @@ static int beagleaudio_audio_stop(struct beagleusb* beagleusb)
 		beagleusb->audio->snd_bulk_urb = NULL;
 	}*/
 
-	printk("PCM Stop Exit\n");
-
 	return 0;
 }
 
 void beagleaudio_audio_suspend(struct beagleusb *beagleusb)
 {
-	printk("PCM Suspend\n");
-
 	if (atomic_read(&beagleusb->audio->snd_stream) && beagleusb->audio->snd_bulk_urb)
 		usb_kill_urb(beagleusb->audio->snd_bulk_urb);
-
-	printk("PCM Suspend Exit\n");
 }
 
 void beagleaudio_audio_resume(struct beagleusb *beagleusb)
 {
-	printk("PCM Resume\n");
-
 	if (atomic_read(&beagleusb->audio->snd_stream) && beagleusb->audio->snd_bulk_urb){
 		usb_submit_urb(beagleusb->audio->snd_bulk_urb, GFP_ATOMIC);
 	}
-
-	printk("PCM Resume Exit\n");
 }
 
 static void snd_beagleaudio_trigger(struct work_struct *work)
 {
 	struct beagleusb *beagleusb = container_of(work, struct beagleusb, snd_trigger);
 
-	printk("PCM Trigger\n");
-
-
 	if (atomic_read(&beagleusb->audio->snd_stream))
 		beagleaudio_audio_start(beagleusb);
 	else
 		beagleaudio_audio_stop(beagleusb);
-
-	printk("PCM Trigger Exit\n");
 }
 
 static int snd_beagleaudio_card_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct beagleusb *chip = snd_pcm_substream_chip(substream);
-
-	printk("PCM Card trigger\n");
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -299,8 +258,6 @@ static int snd_beagleaudio_card_trigger(struct snd_pcm_substream *substream, int
 	}
 
 	schedule_work(&chip->snd_trigger);
-
-	printk("PCM Card trigger Exit\n");
 
 	return 0;
 }
@@ -330,7 +287,6 @@ int beagleaudio_audio_init(struct beagleusb *beagleusb)
 	struct snd_pcm *pcm;
 	unsigned int pipe;
 
-	printk("Audio Init\n");
 
 	INIT_WORK(&beagleusb->snd_trigger, snd_beagleaudio_trigger);
 	atomic_set(&beagleusb->audio->snd_stream, 0);
@@ -390,8 +346,6 @@ int beagleaudio_audio_init(struct beagleusb *beagleusb)
 		beagleusb->audio->snd_bulk_urb->transfer_buffer, DATA_PACKET_SIZE,
 		beagleaudio_audio_urb_received, beagleusb);
 
-	printk("BeagleAudio Init Exit\n");
-
 	return 0;
 
 err_transfer_buffer:
@@ -408,10 +362,8 @@ err:
 
 void beagleaudio_audio_free(struct beagleusb *beagleusb)
 {
-	printk("Audio Free\n");
 	if (beagleusb->audio->snd && beagleusb->usbdev) {
 		snd_card_free(beagleusb->audio->snd);
 		beagleusb->audio->snd = NULL;
 	}
-	printk("Audio Free Exit\n");
 }
