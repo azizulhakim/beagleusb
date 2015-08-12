@@ -135,268 +135,6 @@ void lazzy_update(void* data){
 }*/
 
 
-/*
- * All DisplayLink bulk operations start with 0xAF, followed by specific code
- * All operations are written to buffers which then later get sent to device
- */
-static char *dlfb_set_register(char *buf, u8 reg, u8 val)
-{
-	printk("dlfb_set_register called\n");
-	*buf++ = reg;
-	*buf++ = val;
-	return buf;
-}
-
-static char *dlfb_vidreg_lock(char *buf)
-{
-	printk("dlfb_vidreg_lock called \n");
-	return dlfb_set_register(buf, 0xFF, 0x00);
-}
-
-static char *dlfb_vidreg_unlock(char *buf)
-{
-	printk("dlfb_vidreg_unlock called \n");
-	return dlfb_set_register(buf, 0xFF, 0xFF);
-}
-
-/*
- * Map FB_BLANK_* to DisplayLink register
- * DLReg FB_BLANK_*
- * ----- -----------------------------
- *  0x00 FB_BLANK_UNBLANK (0)
- *  0x01 FB_BLANK (1)
- *  0x03 FB_BLANK_VSYNC_SUSPEND (2)
- *  0x05 FB_BLANK_HSYNC_SUSPEND (3)
- *  0x07 FB_BLANK_POWERDOWN (4) Note: requires modeset to come back
- */
-static char *dlfb_blanking(char *buf, int fb_blank)
-{
-	u8 reg;
-	
-	printk("dlfb_blanking called \n");
-
-	switch (fb_blank) {
-	case FB_BLANK_POWERDOWN:
-		reg = 0x07;
-		break;
-	case FB_BLANK_HSYNC_SUSPEND:
-		reg = 0x05;
-		break;
-	case FB_BLANK_VSYNC_SUSPEND:
-		reg = 0x03;
-		break;
-	case FB_BLANK_NORMAL:
-		reg = 0x01;
-		break;
-	default:
-		reg = 0x00;
-	}
-
-	buf = dlfb_set_register(buf, 0x1F, reg);
-
-	return buf;
-}
-
-static char *dlfb_set_color_depth(char *buf, u8 selection)
-{
-	printk("dlfb_set_color_depth called\n");
-	return dlfb_set_register(buf, 0x00, selection);
-}
-
-static char *dlfb_set_base16bpp(char *wrptr, u32 base)
-{
-	printk("dlfb_set_base16bpp called\n");
-	/* the base pointer is 16 bits wide, 0x20 is hi byte. */
-	wrptr = dlfb_set_register(wrptr, 0x20, base >> 16);
-	wrptr = dlfb_set_register(wrptr, 0x21, base >> 8);
-	return dlfb_set_register(wrptr, 0x22, base);
-}
-
-/*
- * DisplayLink HW has separate 16bpp and 8bpp framebuffers.
- * In 24bpp modes, the low 323 RGB bits go in the 8bpp framebuffer
- */
-static char *dlfb_set_base8bpp(char *wrptr, u32 base)
-{
-	printk("dlfb_set_base8bpp called\n");
-	wrptr = dlfb_set_register(wrptr, 0x26, base >> 16);
-	wrptr = dlfb_set_register(wrptr, 0x27, base >> 8);
-	return dlfb_set_register(wrptr, 0x28, base);
-}
-
-static char *dlfb_set_register_16(char *wrptr, u8 reg, u16 value)
-{
-	printk("dlfb_set_register_16 called\n");
-	wrptr = dlfb_set_register(wrptr, reg, value >> 8);
-	return dlfb_set_register(wrptr, reg+1, value);
-}
-
-/*
- * This is kind of weird because the controller takes some
- * register values in a different byte order than other registers.
- */
-static char *dlfb_set_register_16be(char *wrptr, u8 reg, u16 value)
-{
-	printk("dlfb_set_register_16be called\n");
-	wrptr = dlfb_set_register(wrptr, reg, value);
-	return dlfb_set_register(wrptr, reg+1, value >> 8);
-}
-
-/*
- * LFSR is linear feedback shift register. The reason we have this is
- * because the display controller needs to minimize the clock depth of
- * various counters used in the display path. So this code reverses the
- * provided value into the lfsr16 value by counting backwards to get
- * the value that needs to be set in the hardware comparator to get the
- * same actual count. This makes sense once you read above a couple of
- * times and think about it from a hardware perspective.
- */
-static u16 dlfb_lfsr16(u16 actual_count)
-{
-	u32 lv = 0xFFFF; /* This is the lfsr value that the hw starts with */
-	printk("dlfb_lfsr16 called\n");
-
-	while (actual_count--) {
-		lv =	 ((lv << 1) |
-			(((lv >> 15) ^ (lv >> 4) ^ (lv >> 2) ^ (lv >> 1)) & 1))
-			& 0xFFFF;
-	}
-
-	return (u16) lv;
-}
-
-/*
- * This does LFSR conversion on the value that is to be written.
- * See LFSR explanation above for more detail.
- */
-static char *dlfb_set_register_lfsr16(char *wrptr, u8 reg, u16 value)
-{
-	printk("dlfb_set_register_lfsr16 called\n");
-	return dlfb_set_register_16(wrptr, reg, dlfb_lfsr16(value));
-}
-
-/*
- * This takes a standard fbdev screeninfo struct and all of its monitor mode
- * details and converts them into the DisplayLink equivalent register commands.
- */
-static char *dlfb_set_vid_cmds(char *wrptr, struct fb_var_screeninfo *var)
-{
-	u16 xds, yds;
-	u16 xde, yde;
-	u16 yec;
-	
-	printk("dlfb_set_vid_cmds called\n");
-
-	/* x display start */
-	xds = var->left_margin + var->hsync_len;
-	wrptr = dlfb_set_register_lfsr16(wrptr, 0x01, xds);
-	/* x display end */
-	xde = xds + var->xres;
-	wrptr = dlfb_set_register_lfsr16(wrptr, 0x03, xde);
-
-	/* y display start */
-	yds = var->upper_margin + var->vsync_len;
-	wrptr = dlfb_set_register_lfsr16(wrptr, 0x05, yds);
-	/* y display end */
-	yde = yds + var->yres;
-	wrptr = dlfb_set_register_lfsr16(wrptr, 0x07, yde);
-
-	/* x end count is active + blanking - 1 */
-	wrptr = dlfb_set_register_lfsr16(wrptr, 0x09,
-			xde + var->right_margin - 1);
-
-	/* libdlo hardcodes hsync start to 1 */
-	wrptr = dlfb_set_register_lfsr16(wrptr, 0x0B, 1);
-
-	/* hsync end is width of sync pulse + 1 */
-	wrptr = dlfb_set_register_lfsr16(wrptr, 0x0D, var->hsync_len + 1);
-
-	/* hpixels is active pixels */
-	wrptr = dlfb_set_register_16(wrptr, 0x0F, var->xres);
-
-	/* yendcount is vertical active + vertical blanking */
-	yec = var->yres + var->upper_margin + var->lower_margin +
-			var->vsync_len;
-	wrptr = dlfb_set_register_lfsr16(wrptr, 0x11, yec);
-
-	/* libdlo hardcodes vsync start to 0 */
-	wrptr = dlfb_set_register_lfsr16(wrptr, 0x13, 0);
-
-	/* vsync end is width of vsync pulse */
-	wrptr = dlfb_set_register_lfsr16(wrptr, 0x15, var->vsync_len);
-
-	/* vpixels is active pixels */
-	wrptr = dlfb_set_register_16(wrptr, 0x17, var->yres);
-
-	/* convert picoseconds to 5kHz multiple for pclk5k = x * 1E12/5k */
-	wrptr = dlfb_set_register_16be(wrptr, 0x1B,
-			200*1000*1000/var->pixclock);
-
-	return wrptr;
-}
-
-/*
- * This takes a standard fbdev screeninfo struct that was fetched or prepared
- * and then generates the appropriate command sequence that then drives the
- * display controller.
- */
-static int dlfb_set_video_mode(struct beagleusb *dev,
-				struct fb_var_screeninfo *var)
-{
-	char *buf;
-	char *wrptr;
-	int retval = 0;
-	int writesize;
-	struct urb *urb;
-	
-	printk("dlfb_set_video_mode called\n");
-
-	if (!atomic_read(&dev->video.usb_active))
-		return -EPERM;
-
-	urb = dlfb_get_urb(dev);
-	if (!urb)
-		return -ENOMEM;
-
-	buf = (char *) urb->transfer_buffer;
-
-	/*
-	* This first section has to do with setting the base address on the
-	* controller * associated with the display. There are 2 base
-	* pointers, currently, we only * use the 16 bpp segment.
-	*/
-	wrptr = dlfb_vidreg_lock(buf);
-	wrptr = dlfb_set_color_depth(wrptr, 0x00);
-	/* set base for 16bpp segment to 0 */
-	wrptr = dlfb_set_base16bpp(wrptr, 0);
-	/* set base for 8bpp segment to end of fb */
-	wrptr = dlfb_set_base8bpp(wrptr, dev->video.info->fix.smem_len);
-
-	wrptr = dlfb_set_vid_cmds(wrptr, var);
-	wrptr = dlfb_blanking(wrptr, FB_BLANK_UNBLANK);
-	wrptr = dlfb_vidreg_unlock(wrptr);
-
-	writesize = wrptr - buf;
-
-	
-	printk("Writesize in video mode set: %d\n", writesize);
-	/* 
-	 * This accounts for 72 Bytes
-	 * Removing all usb transfers besides the frame data.
-	 * Transfer removal is handled in the submit_urb function
-	 * -TODO- Ensure the driver without such restriction
-	 */
-
-#if VAR_RES
-#else
-	retval = dlfb_submit_urb(dev, urb, writesize);
-#endif
-
-	dev->video.blank_mode = FB_BLANK_UNBLANK;
-
-	return retval;
-}
-
 static int dlfb_ops_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	unsigned long start = vma->vm_start;
@@ -1050,7 +788,7 @@ static int dlfb_ops_check_var(struct fb_var_screeninfo *var,
 static int dlfb_ops_set_par(struct fb_info *info)
 {
 	struct beagleusb *dev = info->par;
-	int result;
+	int result = 0;
 	u16 *pix_framebuffer;
 	int i;
 	
@@ -1058,7 +796,7 @@ static int dlfb_ops_set_par(struct fb_info *info)
 
 	pr_notice("set_par mode %dx%d\n", info->var.xres, info->var.yres);
 
-	result = dlfb_set_video_mode(dev, &info->var);
+	//result = dlfb_set_video_mode(dev, &info->var);
 
 	if ((result == 0) && (dev->video.fb_count == 0)) {
 
@@ -1093,7 +831,7 @@ static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 	    (blank_mode != FB_BLANK_POWERDOWN)) {
 
 		/* returning from powerdown requires a fresh modeset */
-		dlfb_set_video_mode(dev, &info->var);
+		//dlfb_set_video_mode(dev, &info->var);
 	}
 
 	return 0;
