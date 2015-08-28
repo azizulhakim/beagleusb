@@ -292,7 +292,7 @@ int beagleaudio_audio_init(struct beagleusb *beagleusb)
 	atomic_set(&beagleusb->audio->snd_stream, 0);
 
 	#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,16,0)
-	rv = snd_card_new(beagleusb, SNDRV_DEFAULT_IDX1, "beagleaudio", THIS_MODULE, 0, &card);
+	rv = snd_card_new(beagleusb->dev, SNDRV_DEFAULT_IDX1, "beagleaudio", THIS_MODULE, 0, &card);
 	#else
 	rv = snd_card_create(SNDRV_DEFAULT_IDX1, "beagleaudio", THIS_MODULE, 0,&card);
 	#endif
