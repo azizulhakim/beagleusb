@@ -34,7 +34,7 @@
 #define YRES		768
 
 #define BEAGLEAUDIO_AUDIO_BUFFER	65536
-#define PCM_HEADER_SIZE				4
+#define PCM_HEADER_SIZE				512
 #define PCM_DATA_SIZE	 			4096
 #define DATA_PACKET_SIZE 			(2 * BPP * XRES) + PCM_HEADER_SIZE
 #define DATA_AUDIO					1
