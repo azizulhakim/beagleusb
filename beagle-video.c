@@ -119,8 +119,8 @@ void lazzy_update(void* data){
 					*((u8*)urb->transfer_buffer) = (char)DATA_VIDEO;			// this is video data
 					*((u8*)urb->transfer_buffer+1) = i;				// two byte page index
 					*((u8*)urb->transfer_buffer+1+1) = i >> 8;
-					memcpy(urb->transfer_buffer + 2 + 2, line_start, 4096);
-					dlfb_submit_urb(beagleusb, urb, 4100);
+					memcpy(urb->transfer_buffer + PCM_HEADER_SIZE, line_start, PCM_DATA_SIZE);
+					dlfb_submit_urb(beagleusb, urb, DATA_PACKET_SIZE);
 				}
 			}
 		}
@@ -195,7 +195,7 @@ static int dlfb_render_hline(struct beagleusb *dev, struct urb **urb_ptr,
 		*((u8*)urb->transfer_buffer+1+1) = page_index >> 8;
 	}
 
-	memcpy(urb->transfer_buffer + 2 + 2, line_start, byte_width);
+	memcpy(urb->transfer_buffer + PCM_HEADER_SIZE, line_start, byte_width);
 
 	vline_count++;
 	
