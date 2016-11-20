@@ -32,8 +32,6 @@
 #include <linux/delay.h>
 #include <linux/version.h> /* many users build as module against old kernels*/
 
-#include "datamanager.h"
-#include "ringbuffer.h"
 #include "beagleusb.h"
 #include "beagle-video.h"
 
@@ -296,15 +294,17 @@ static ssize_t dlfb_ops_read(struct fb_info *info, char __user *buf,
 static ssize_t dlfb_ops_write(struct fb_info *info, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
+	struct beagleusb *dev;
 	ssize_t result = -ENOSYS;
 	unsigned long copiedByte = 0;
+	unsigned long startindex = 0;
+	unsigned long endindex = 0;
 	
 	printk("dlfb_ops_write called\n");
 
-	struct beagleusb *dev = info->par;
-	u32 offset = (u32) *ppos;
-	unsigned long startindex = dev->video.offset / PAGE_SIZE;
-	unsigned long endindex = startindex % 384;	
+	dev = (struct beagleusb*)info->par;
+	startindex = dev->video.offset / PAGE_SIZE;
+	endindex = startindex % 384;	
 
 
 	copiedByte = copy_from_user((unsigned char*)(dev->video.info->fix.smem_start) + dev->video.offset, buf, (int)count);
@@ -1284,7 +1284,7 @@ int dlfb_video_init(struct beagleusb *dev){
 
 	#if LAZZY_MODE
 	printk("Init Thread\n");
-	lazzy_thread = kthread_create(lazzy_update, (void*)dev, "lazzy_thread");
+	lazzy_thread = kthread_create((void*)lazzy_update, (void*)dev, "lazzy_thread");
 
 	if (lazzy_thread != NULL){
 		printk(KERN_INFO "Data Manager Thread Created\n");

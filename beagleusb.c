@@ -19,7 +19,6 @@
 
 #include <linux/module.h>
 
-#include "datamanager.h"
 #include "beagleusb.h"
 #include "aoa.h"
 #include "input.h"
@@ -220,8 +219,6 @@ static int beagleusb_probe(struct usb_interface *intf,
 		beagleusb = beagle_allocate_device();
 		if (beagleusb == NULL)
 			return -ENOMEM;
-
-		manager_init(beagleusb);
 
 		beagleusb->dev = dev;
 		beagleusb->usbdev = usb_get_dev(interface_to_usbdev(intf));

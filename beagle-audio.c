@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include <linux/version.h>
 
-#include "ringbuffer.h"
 #include "beagleusb.h"
 #include "beagle-audio.h"
 

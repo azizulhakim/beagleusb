@@ -1,4 +1,4 @@
-beagle-y :=  ringbuffer.o datamanager.o aoa.o beagleusb.o beagle-audio.o beagle-video.o input.o
+beagle-y :=  aoa.o beagleusb.o beagle-audio.o beagle-video.o input.o
 
 obj-m += beagle.o
 
