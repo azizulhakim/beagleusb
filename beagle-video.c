@@ -297,27 +297,32 @@ static ssize_t dlfb_ops_write(struct fb_info *info, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
 	ssize_t result = -ENOSYS;
+	unsigned long copiedByte = 0;
 	
 	printk("dlfb_ops_write called\n");
 
-#if defined CONFIG_FB_SYS_FOPS
-
 	struct beagleusb *dev = info->par;
 	u32 offset = (u32) *ppos;
+	unsigned long startindex = dev->video.offset / PAGE_SIZE;
+	unsigned long endindex = startindex % 384;	
 
-	result = fb_sys_write(info, buf, count, ppos);
 
-	if (result > 0) {
-		int start = max((int)(offset / info->fix.line_length) - 1, 0);
-		int lines = min((u32)((result / info->fix.line_length) + 1),
-				(u32)info->var.yres);
-
-		dlfb_handle_damage(dev, 0, start, info->var.xres,
-			lines, info->screen_base);
+	copiedByte = copy_from_user((unsigned char*)(dev->video.info->fix.smem_start) + dev->video.offset, buf, (int)count);
+	*ppos += count;
+	result = count;
+	dev->video.offset = (dev->video.offset + count) % dev->video.info->fix.smem_len;
+	endindex = (dev->video.offset / PAGE_SIZE + 1) % 384;
+	if (copiedByte){
+		result = -EFAULT;
 	}
 
-#endif
-	return result;
+	while (startindex != endindex){
+		lazzy_tracker[startindex][0] = 1;
+		lazzy_tracker[startindex][1] = startindex << PAGE_SHIFT;
+		startindex = (startindex + 1) % 384;
+	}
+
+	return count;
 }
 
 /* hardware has native COPY command (see libdlo), but not worth it for fbcon */
@@ -1260,7 +1265,7 @@ static int dlfb_select_std_channel(struct beagleusb *dev)
 //static void dlfb_init_framebuffer_work(struct work_struct *work);
 
 int dlfb_video_init(struct beagleusb *dev){
-
+	dev->video.offset = 0;
 	dev->video.sku_pixel_limit = 2048 * 1152; /* default to maximum */
 
 	if (pixel_limit) {

@@ -62,6 +62,7 @@ struct beaglevideo{
 	atomic_t bytes_sent; /* to usb, after compression including overhead */
 	atomic_t cpu_kcycles_used; /* transpired during pixel processing */
 	unsigned char *	bulk_in_buffer;	/* the buffer to in data */
+	unsigned long offset;
 };
 
 
