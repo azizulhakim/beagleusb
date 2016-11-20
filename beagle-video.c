@@ -1502,9 +1502,8 @@ static void dlfb_free_urb_list(struct beagleusb *dev)
 		unode = list_entry(node, struct urb_node, entry);
 		urb = unode->urb;
 
-		/* Free each separately allocated piece */
-		usb_free_coherent(urb->dev, dev->video.urbs.size,
-				  urb->transfer_buffer, urb->transfer_dma);
+		usb_kill_urb(urb);
+		kfree(urb->transfer_buffer);
 		usb_free_urb(urb);
 		kfree(node);
 	}
