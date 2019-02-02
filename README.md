@@ -9,4 +9,6 @@ https://github.com/azizulhakim/beagledroid-usbaudio
 https://github.com/azizulhakim/beagledroid-kbd
 https://github.com/azizulhakim/bard-linux
 
+Corresponding Android application is available at https://github.com/azizulhakim/bard-droid
+
 Test instructions are added inside "docs/How to Test.html"
