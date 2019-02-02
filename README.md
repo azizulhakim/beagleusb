@@ -1,8 +1,8 @@
 # beagleusb
-Beagleboard USB driver for Mouse, Keyboard, Audio playback
+Beagleboard USB driver for Mouse, Keyboard, Audio playback. This driver allows any USB connected Android device to be used as an USB Mouse/Keyboard, Speaker and Monitor.
 
 
-This Repository is an integration of three different drivers-Audio, Input & Framebuffer driver
+This Repository is an integration of three different drivers that I have created or improved-Audio, Input & Framebuffer driver
 
 Individual startup repository available at:
 https://github.com/azizulhakim/beagledroid-usbaudio
